@@ -64,14 +64,14 @@ final class RectangleFeaturesFunnel {
     let minNumberOfMatches = 5
 
     /// The number of similar rectangles that need to be found to auto scan.
-    let autoScanThreshold = 25
+    let autoScanThreshold = 8
 
     /// The number of times the rectangle has passed the threshold to be auto-scanned
     var currentAutoScanPassCount = 0
 
     /// The value in pixels used to determine if a rectangle is accurate enough to be auto scanned.
     /// A higher value means the auto scan is quicker, but the rectangle will be less accurate. On the other hand, the lower the value, the longer it'll take for the auto scan, but it'll be way more accurate
-    var autoScanMatchingThreshold: CGFloat = 15.0
+    var autoScanMatchingThreshold: CGFloat = 25.0
 
     /// Add a rectangle to the funnel, and if a new rectangle should be displayed, the completion block will be called.
     /// The algorithm works the following way:
