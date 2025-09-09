@@ -11,6 +11,9 @@ import UIKit
 
 /// The `EditScanViewController` offers an interface for the user to edit the detected quadrilateral.
 final class EditScanViewController: UIViewController {
+    
+    /// Index for editing existing scans in multi-page mode. Nil for new scans.
+    var editingIndex: Int?
 
     private lazy var imageView: UIImageView = {
         let imageView = UIImageView()
@@ -189,6 +192,7 @@ final class EditScanViewController: UIViewController {
         )
 
         let reviewViewController = ReviewViewController(results: results)
+        reviewViewController.editingIndex = editingIndex
         navigationController?.pushViewController(reviewViewController, animated: true)
     }
 

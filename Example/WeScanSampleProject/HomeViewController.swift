@@ -115,8 +115,12 @@ final class HomeViewController: UIViewController {
             self.present(controller, animated: true, completion: nil)
         }
 
-        let scanAction = UIAlertAction(title: "Scan", style: .default) { _ in
+        let scanAction = UIAlertAction(title: "Scan Single Page", style: .default) { _ in
             self.scanImage()
+        }
+        
+        let multiPageScanAction = UIAlertAction(title: "Scan Multiple Pages", style: .default) { _ in
+            self.scanMultipleImages()
         }
 
         let selectAction = UIAlertAction(title: "Select", style: .default) { _ in
@@ -126,6 +130,7 @@ final class HomeViewController: UIViewController {
         let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
 
         actionSheet.addAction(scanAction)
+        actionSheet.addAction(multiPageScanAction)
         actionSheet.addAction(selectAction)
         actionSheet.addAction(cancelAction)
         actionSheet.addAction(newAction)
@@ -135,6 +140,19 @@ final class HomeViewController: UIViewController {
 
     func scanImage() {
         let scannerViewController = ImageScannerController(delegate: self)
+        scannerViewController.modalPresentationStyle = .fullScreen
+
+        if #available(iOS 13.0, *) {
+            scannerViewController.navigationBar.tintColor = .label
+        } else {
+            scannerViewController.navigationBar.tintColor = .black
+        }
+
+        present(scannerViewController, animated: true)
+    }
+    
+    func scanMultipleImages() {
+        let scannerViewController = ImageScannerController(multiPageDelegate: self)
         scannerViewController.modalPresentationStyle = .fullScreen
 
         if #available(iOS 13.0, *) {
@@ -168,6 +186,24 @@ extension HomeViewController: ImageScannerControllerDelegate {
         scanner.dismiss(animated: true, completion: nil)
     }
 
+}
+
+extension HomeViewController: MultiPageImageScannerControllerDelegate {
+    func imageScannerController(_ scanner: ImageScannerController, didFinishScanningWithMultipleResults results: [ImageScannerResults]) {
+        print("📸📸📸 Example: Completed multi-page scan with \\(results.count) pages")
+        
+        // Create alert to show results
+        let alert = UIAlertController(
+            title: "Multi-Page Scan Complete", 
+            message: "Successfully scanned \\(results.count) pages!\\n\\nIn a real app, you would save these images or process them further.", 
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        
+        scanner.dismiss(animated: true) { [weak self] in
+            self?.present(alert, animated: true)
+        }
+    }
 }
 
 extension HomeViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {

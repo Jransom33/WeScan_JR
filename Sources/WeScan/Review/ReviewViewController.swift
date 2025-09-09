@@ -15,6 +15,9 @@ final class ReviewViewController: UIViewController {
     private var rotationAngle = Measurement<UnitAngle>(value: 0, unit: .degrees)
     private var enhancedImageIsAvailable = false
     private var isCurrentlyDisplayingEnhancedImage = false
+    
+    /// Index for editing existing scans in multi-page mode. Nil for new scans.
+    var editingIndex: Int?
 
     lazy var imageView: UIImageView = {
         let imageView = UIImageView()
@@ -176,8 +179,23 @@ final class ReviewViewController: UIViewController {
         newResults.croppedScan.rotate(by: rotationAngle)
         newResults.enhancedScan?.rotate(by: rotationAngle)
         newResults.doesUserPreferEnhancedScan = isCurrentlyDisplayingEnhancedImage
-        imageScannerController.imageScannerDelegate?
-            .imageScannerController(imageScannerController, didFinishScanningWithResults: newResults)
+        
+        // Handle multi-page scanning mode
+        if imageScannerController.isMultiPageScanningEnabled {
+            if let index = editingIndex {
+                // Update existing scan result
+                imageScannerController.updateScanResult(newResults, at: index)
+                print("📸📸📸 MultiScan: Updated existing scan at index \\(index)")
+            } else {
+                // Add new scan result
+                imageScannerController.addScanResult(newResults)
+                print("📸📸📸 MultiScan: Added new scan, total: \\(imageScannerController.scanResults.count)")
+            }
+        } else {
+            // Original single-page behavior
+            imageScannerController.imageScannerDelegate?
+                .imageScannerController(imageScannerController, didFinishScanningWithResults: newResults)
+        }
     }
 
 }
