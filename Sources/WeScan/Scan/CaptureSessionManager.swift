@@ -63,7 +63,7 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     private var noRectangleCount = 0
 
     /// The minimum number of time required by `noRectangleCount` to validate that no rectangles have been found.
-    private let noRectangleThreshold = 3
+    private let noRectangleThreshold = 8
 
     // MARK: Life Cycle
 
