@@ -52,6 +52,27 @@ public struct Quadrilateral: Transformable {
             + bottomLeft.distanceTo(point: topLeft)
         return Double(perimeter)
     }
+    
+    /// The approximate area of the Quadrilateral using the shoelace formula
+    var area: Double {
+        let points = [topLeft, topRight, bottomRight, bottomLeft, topLeft] // Close the shape
+        var area: Double = 0
+        
+        for i in 0..<(points.count - 1) {
+            area += Double(points[i].x * points[i + 1].y - points[i + 1].x * points[i].y)
+        }
+        
+        return abs(area) / 2.0
+    }
+    
+    /// The aspect ratio of the Quadrilateral (width/height)
+    var aspectRatio: Double {
+        let width = max(topLeft.distanceTo(point: topRight), bottomLeft.distanceTo(point: bottomRight))
+        let height = max(topLeft.distanceTo(point: bottomLeft), topRight.distanceTo(point: bottomRight))
+        
+        guard height > 0 else { return 1.0 }
+        return Double(width / height)
+    }
 
     init(rectangleFeature: CIRectangleFeature) {
         self.topLeft = rectangleFeature.topLeft

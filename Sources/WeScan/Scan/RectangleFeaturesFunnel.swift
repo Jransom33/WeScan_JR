@@ -51,27 +51,27 @@ final class RectangleFeaturesFunnel {
     private var rectangles = [RectangleMatch]()
 
     /// The maximum number of rectangles to compare newly added rectangles with. Determines the maximum size of `rectangles`. Increasing this value will impact performance.
-    let maxNumberOfRectangles = 8
+    let maxNumberOfRectangles = 12
 
     /// The minimum number of rectangles needed to start making comparaisons and determining which rectangle to display. This value should always be inferior than `maxNumberOfRectangles`.
     /// A higher value will delay the first time a rectangle is displayed.
-    let minNumberOfRectangles = 3
+    let minNumberOfRectangles = 5
 
     /// The value in pixels used to determine if two rectangle match or not. A higher value will prevent displayed rectangles to be refreshed. On the opposite, a smaller value will make new rectangles be displayed constantly.
-    let matchingThreshold: CGFloat = 40.0
+    let matchingThreshold: CGFloat = 80.0
 
     /// The minumum number of matching rectangles (within the `rectangle` queue), to be confident enough to display a rectangle.
-    let minNumberOfMatches = 3
+    let minNumberOfMatches = 5
 
     /// The number of similar rectangles that need to be found to auto scan.
-    let autoScanThreshold = 35
+    let autoScanThreshold = 25
 
     /// The number of times the rectangle has passed the threshold to be auto-scanned
     var currentAutoScanPassCount = 0
 
     /// The value in pixels used to determine if a rectangle is accurate enough to be auto scanned.
     /// A higher value means the auto scan is quicker, but the rectangle will be less accurate. On the other hand, the lower the value, the longer it'll take for the auto scan, but it'll be way more accurate
-    var autoScanMatchingThreshold: CGFloat = 6.0
+    var autoScanMatchingThreshold: CGFloat = 15.0
 
     /// Add a rectangle to the funnel, and if a new rectangle should be displayed, the completion block will be called.
     /// The algorithm works the following way:
