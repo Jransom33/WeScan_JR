@@ -42,7 +42,11 @@ extension Array where Element == Quadrilateral {
         let aspectRatioScore = Swift.max(0, 1.0 - aspectRatioDifference * 2.0) // Penalty for extreme ratios
         
         // Combined score: heavily weight area, but give bonus for good aspect ratio
-        return areaScore * (0.7 + 0.3 * aspectRatioScore)
+        let finalScore = areaScore * (0.7 + 0.3 * aspectRatioScore)
+        
+        print("📸📸📸 RectScoring: Area: \(area), AspectRatio: \(aspectRatio), AspectScore: \(aspectRatioScore), FinalScore: \(finalScore)")
+        
+        return finalScore
     }
 
 }

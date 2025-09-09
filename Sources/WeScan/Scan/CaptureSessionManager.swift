@@ -210,7 +210,7 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
 
     private func processRectangle(rectangle: Quadrilateral?, imageSize: CGSize) {
         if let rectangle {
-
+            print("📸📸📸 CaptureSession: Rectangle detected! Image size: \(imageSize)")
             self.noRectangleCount = 0
             self.rectangleFunnel
                 .add(rectangle, currentlyDisplayedRectangle: self.displayedRectangleResult?.rectangle) { [weak self] result, rectangle in
@@ -220,21 +220,29 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                 }
 
                 let shouldAutoScan = (result == .showAndAutoScan)
+                print("📸📸📸 CaptureSession: Funnel result - shouldAutoScan: \(shouldAutoScan)")
+                print("📸📸📸 CaptureSession: Auto-scan enabled: \(CaptureSession.current.isAutoScanEnabled), isEditing: \(CaptureSession.current.isEditing)")
+                
                 self.displayRectangleResult(rectangleResult: RectangleDetectorResult(rectangle: rectangle, imageSize: imageSize))
                 if shouldAutoScan, CaptureSession.current.isAutoScanEnabled, !CaptureSession.current.isEditing {
+                    print("📸📸📸 CaptureSession: CAPTURING PHOTO! 📷")
                     capturePhoto()
+                } else if shouldAutoScan {
+                    print("📸📸📸 CaptureSession: Auto-scan triggered but conditions not met - autoScan: \(CaptureSession.current.isAutoScanEnabled), editing: \(CaptureSession.current.isEditing)")
                 }
             }
 
         } else {
-
+            print("📸📸📸 CaptureSession: No rectangle detected")
             DispatchQueue.main.async { [weak self] in
                 guard let self else {
                     return
                 }
                 self.noRectangleCount += 1
+                print("📸📸📸 CaptureSession: No rectangle count: \(self.noRectangleCount)/\(self.noRectangleThreshold)")
 
                 if self.noRectangleCount > self.noRectangleThreshold {
+                    print("📸📸📸 CaptureSession: Clearing displayed rectangle - too many frames without detection")
                     // Reset the currentAutoScanPassCount, so the threshold is restarted the next time a rectangle is found
                     self.rectangleFunnel.currentAutoScanPassCount = 0
 

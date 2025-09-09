@@ -23,18 +23,34 @@ enum VisionRectangleDetector {
         // Create the rectangle request, and, if found, return the biggest rectangle (else return nothing).
         let rectangleDetectionRequest: VNDetectRectanglesRequest = {
             let rectDetectRequest = VNDetectRectanglesRequest(completionHandler: { request, error in
-                guard error == nil, let results = request.results as? [VNRectangleObservation], !results.isEmpty else {
+                if let error = error {
+                    print("📸📸📸 VisionDetector: Error detecting rectangles: \(error)")
                     completion(nil)
                     return
                 }
-
+                
+                guard let results = request.results as? [VNRectangleObservation], !results.isEmpty else {
+                    print("📸📸📸 VisionDetector: No rectangles found")
+                    completion(nil)
+                    return
+                }
+                
+                print("📸📸📸 VisionDetector: Found \(results.count) raw rectangles")
+                
                 let quads: [Quadrilateral] = results.map(Quadrilateral.init)
+                
+                for (index, quad) in quads.enumerated() {
+                    print("📸📸📸 VisionDetector: Rectangle \(index + 1) - area: \(quad.area), aspect ratio: \(quad.aspectRatio)")
+                }
 
                 // This can't fail because the earlier guard protected against an empty array, but we use guard because of SwiftLint
                 guard let biggest = quads.biggest() else {
+                    print("📸📸📸 VisionDetector: No best rectangle selected")
                     completion(nil)
                     return
                 }
+                
+                print("📸📸📸 VisionDetector: Selected best rectangle with area: \(biggest.area), aspect ratio: \(biggest.aspectRatio)")
 
                 let transform = CGAffineTransform.identity
                     .scaledBy(x: width, y: height)

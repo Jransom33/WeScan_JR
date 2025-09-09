@@ -29,13 +29,27 @@ enum CIRectangleDetector {
 
     static func rectangle(forImage image: CIImage) -> Quadrilateral? {
         guard let rectangleFeatures = rectangleDetector?.features(in: image) as? [CIRectangleFeature] else {
+            print("📸📸📸 CIDetector: No rectangle features found")
             return nil
         }
+        
+        print("📸📸📸 CIDetector: Found \(rectangleFeatures.count) raw rectangles")
 
         let quads = rectangleFeatures.map { rectangle in
             return Quadrilateral(rectangleFeature: rectangle)
         }
+        
+        for (index, quad) in quads.enumerated() {
+            print("📸📸📸 CIDetector: Rectangle \(index + 1) - area: \(quad.area), aspect ratio: \(quad.aspectRatio)")
+        }
+        
+        let bestQuad = quads.biggest()
+        if let best = bestQuad {
+            print("📸📸📸 CIDetector: Selected best rectangle with area: \(best.area), aspect ratio: \(best.aspectRatio)")
+        } else {
+            print("📸📸📸 CIDetector: No best rectangle selected")
+        }
 
-        return quads.biggest()
+        return bestQuad
     }
 }

@@ -154,6 +154,8 @@ final class QuadrilateralView: UIView {
     /// - Parameters:
     ///   - quad: The quadrilateral to draw on the view. It should be in the coordinates of the current `QuadrilateralView` instance.
     func drawQuadrilateral(quad: Quadrilateral, animated: Bool) {
+        print("📸📸📸 QuadView: Drawing rectangle overlay - animated: \(animated), editable: \(editable)")
+        print("📸📸📸 QuadView: Screen coordinates - TL(\(quad.topLeft.x), \(quad.topLeft.y)) TR(\(quad.topRight.x), \(quad.topRight.y)) BR(\(quad.bottomRight.x), \(quad.bottomRight.y)) BL(\(quad.bottomLeft.x), \(quad.bottomLeft.y))")
         self.quad = quad
         drawQuad(quad, animated: animated)
         if editable {
@@ -189,6 +191,7 @@ final class QuadrilateralView: UIView {
     }
 
     func removeQuadrilateral() {
+        print("📸📸📸 QuadView: Removing rectangle overlay")
         quadLayer.path = nil
         quadLayer.isHidden = true
     }

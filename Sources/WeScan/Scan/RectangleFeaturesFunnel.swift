@@ -88,29 +88,48 @@ final class RectangleFeaturesFunnel {
     func add(_ rectangleFeature: Quadrilateral, currentlyDisplayedRectangle currentRectangle: Quadrilateral?, completion: (AddResult, Quadrilateral) -> Void) {
         let rectangleMatch = RectangleMatch(rectangleFeature: rectangleFeature)
         rectangles.append(rectangleMatch)
+        
+        print("📸📸📸 RectangleFunnel: Added rectangle to queue. Queue size: \(rectangles.count)/\(maxNumberOfRectangles)")
+        print("📸📸📸 Rectangle bounds: TL(\(rectangleFeature.topLeft.x), \(rectangleFeature.topLeft.y)) TR(\(rectangleFeature.topRight.x), \(rectangleFeature.topRight.y)) BR(\(rectangleFeature.bottomRight.x), \(rectangleFeature.bottomRight.y)) BL(\(rectangleFeature.bottomLeft.x), \(rectangleFeature.bottomLeft.y))")
+        print("📸📸📸 Rectangle area: \(rectangleFeature.area), aspect ratio: \(rectangleFeature.aspectRatio)")
 
         guard rectangles.count >= minNumberOfRectangles else {
+            print("📸📸📸 RectangleFunnel: Not enough rectangles yet (\(rectangles.count)/\(minNumberOfRectangles))")
             return
         }
 
         if rectangles.count > maxNumberOfRectangles {
             rectangles.removeFirst()
+            print("📸📸📸 RectangleFunnel: Removed oldest rectangle, queue now: \(rectangles.count)")
         }
 
         updateRectangleMatches()
 
         guard let bestRectangle = bestRectangle(withCurrentlyDisplayedRectangle: currentRectangle) else {
+            print("📸📸📸 RectangleFunnel: No best rectangle found")
             return
         }
+        
+        print("📸📸📸 RectangleFunnel: Best rectangle found with matching score: \(bestRectangle.matchingScore)")
 
         if let previousRectangle = currentRectangle,
             bestRectangle.rectangleFeature.isWithin(autoScanMatchingThreshold, ofRectangleFeature: previousRectangle) {
             currentAutoScanPassCount += 1
+            print("📸📸📸 AutoScan: Rectangle is stable! Pass count: \(currentAutoScanPassCount)/\(autoScanThreshold)")
             if currentAutoScanPassCount > autoScanThreshold {
                 currentAutoScanPassCount = 0
+                print("📸📸📸 AutoScan: TRIGGERING AUTO CAPTURE! 🎉")
                 completion(AddResult.showAndAutoScan, bestRectangle.rectangleFeature)
+            } else {
+                completion(AddResult.showOnly, bestRectangle.rectangleFeature)
             }
         } else {
+            if let previousRectangle = currentRectangle {
+                print("📸📸📸 AutoScan: Rectangle moved too much, resetting counter (was: \(currentAutoScanPassCount))")
+            } else {
+                print("📸📸📸 AutoScan: First rectangle detected")
+            }
+            currentAutoScanPassCount = 0
             completion(AddResult.showOnly, bestRectangle.rectangleFeature)
         }
     }
