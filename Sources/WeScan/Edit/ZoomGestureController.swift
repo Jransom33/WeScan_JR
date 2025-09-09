@@ -28,6 +28,10 @@ final class ZoomGestureController {
         }
 
         guard pan.state != .ended else {
+            if let corner = self.closestCorner {
+                print("📸📸📸 CornerEdit: Finished adjusting \(corner) corner")
+                print("📸📸📸 CornerEdit: Final rectangle - TL(\(String(format: "%.1f", drawnQuad.topLeft.x)), \(String(format: "%.1f", drawnQuad.topLeft.y))) TR(\(String(format: "%.1f", drawnQuad.topRight.x)), \(String(format: "%.1f", drawnQuad.topRight.y))) BR(\(String(format: "%.1f", drawnQuad.bottomRight.x)), \(String(format: "%.1f", drawnQuad.bottomRight.y))) BL(\(String(format: "%.1f", drawnQuad.bottomLeft.x)), \(String(format: "%.1f", drawnQuad.bottomLeft.y)))")
+            }
             self.previousPanPosition = nil
             self.closestCorner = nil
             quadView.resetHighlightedCornerViews()
@@ -38,6 +42,12 @@ final class ZoomGestureController {
 
         let previousPanPosition = self.previousPanPosition ?? position
         let closestCorner = self.closestCorner ?? position.closestCornerFrom(quad: drawnQuad)
+        
+        // Log when starting to adjust a corner
+        if self.closestCorner == nil {
+            print("📸📸📸 CornerEdit: Started adjusting \(closestCorner) corner")
+            print("📸📸📸 CornerEdit: Original rectangle - TL(\(String(format: "%.1f", drawnQuad.topLeft.x)), \(String(format: "%.1f", drawnQuad.topLeft.y))) TR(\(String(format: "%.1f", drawnQuad.topRight.x)), \(String(format: "%.1f", drawnQuad.topRight.y))) BR(\(String(format: "%.1f", drawnQuad.bottomRight.x)), \(String(format: "%.1f", drawnQuad.bottomRight.y))) BL(\(String(format: "%.1f", drawnQuad.bottomLeft.x)), \(String(format: "%.1f", drawnQuad.bottomLeft.y)))")
+        }
 
         let offset = CGAffineTransform(translationX: position.x - previousPanPosition.x, y: position.y - previousPanPosition.y)
         let cornerView = quadView.cornerViewForCornerPosition(position: closestCorner)

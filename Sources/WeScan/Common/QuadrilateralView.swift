@@ -204,9 +204,33 @@ final class QuadrilateralView: UIView {
         }
 
         let validPoint = self.validPoint(point, forCornerViewOfSize: cornerView.bounds.size, inView: self)
+        
+        // Get original corner position before update
+        let originalPosition: CGPoint
+        switch cornerView.position {
+        case .topLeft:
+            originalPosition = quad.topLeft
+        case .topRight:
+            originalPosition = quad.topRight
+        case .bottomRight:
+            originalPosition = quad.bottomRight
+        case .bottomLeft:
+            originalPosition = quad.bottomLeft
+        }
 
         cornerView.center = validPoint
         let updatedQuad = update(quad, withPosition: validPoint, forCorner: cornerView.position)
+        
+        // Calculate movement difference
+        let deltaX = validPoint.x - originalPosition.x
+        let deltaY = validPoint.y - originalPosition.y
+        let distance = sqrt(deltaX * deltaX + deltaY * deltaY)
+        
+        print("📸📸📸 CornerEdit: \(cornerView.position) corner moved")
+        print("📸📸📸 CornerEdit: Original position - x: \(String(format: "%.2f", originalPosition.x)), y: \(String(format: "%.2f", originalPosition.y))")
+        print("📸📸📸 CornerEdit: New position - x: \(String(format: "%.2f", validPoint.x)), y: \(String(format: "%.2f", validPoint.y))")
+        print("📸📸📸 CornerEdit: Movement - deltaX: \(String(format: "%.2f", deltaX)), deltaY: \(String(format: "%.2f", deltaY)), distance: \(String(format: "%.2f", distance))")
+        print("📸📸📸 CornerEdit: Updated rectangle - TL(\(String(format: "%.1f", updatedQuad.topLeft.x)), \(String(format: "%.1f", updatedQuad.topLeft.y))) TR(\(String(format: "%.1f", updatedQuad.topRight.x)), \(String(format: "%.1f", updatedQuad.topRight.y))) BR(\(String(format: "%.1f", updatedQuad.bottomRight.x)), \(String(format: "%.1f", updatedQuad.bottomRight.y))) BL(\(String(format: "%.1f", updatedQuad.bottomLeft.x)), \(String(format: "%.1f", updatedQuad.bottomLeft.y)))")
 
         self.quad = updatedQuad
         drawQuad(updatedQuad, animated: false)
