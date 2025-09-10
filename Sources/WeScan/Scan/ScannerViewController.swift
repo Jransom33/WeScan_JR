@@ -320,8 +320,52 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
     func captureSessionManager(_ captureSessionManager: CaptureSessionManager, didCapturePicture picture: UIImage, withQuad quad: Quadrilateral?) {
         activityIndicator.stopAnimating()
 
-        let editVC = EditScanViewController(image: picture, quad: quad)
-        navigationController?.pushViewController(editVC, animated: false)
+        // Create scan results for this capture
+        let originalScan = ImageScannerScan(image: picture)
+        
+        // Apply perspective correction if we have a detected quad
+        let croppedScan: ImageScannerScan
+        if let quad = quad,
+           let ciImage = CIImage(image: picture) {
+            let cgOrientation = CGImagePropertyOrientation(picture.imageOrientation)
+            let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
+            
+            // Convert quad to image coordinates
+            var cartesianQuad = quad.toCartesian(withHeight: picture.size.height)
+            cartesianQuad.reorganize()
+            
+            let filteredImage = orientedImage.applyingFilter("CIPerspectiveCorrection", parameters: [
+                "inputTopLeft": CIVector(cgPoint: cartesianQuad.bottomLeft),
+                "inputTopRight": CIVector(cgPoint: cartesianQuad.bottomRight),
+                "inputBottomLeft": CIVector(cgPoint: cartesianQuad.topLeft),
+                "inputBottomRight": CIVector(cgPoint: cartesianQuad.topRight)
+            ])
+            
+            let croppedImage = UIImage.from(ciImage: filteredImage)
+            croppedScan = ImageScannerScan(image: croppedImage)
+        } else {
+            croppedScan = originalScan
+        }
+        
+        let scanResult = ImageScannerResults(
+            originalScan: originalScan,
+            croppedScan: croppedScan,
+            detectedRectangle: quad
+        )
+        
+        print("📸📸📸 Scanner: Captured page, going to thumbnail summary instead of edit view")
+        
+        // Get or create thumbnail summary view controller
+        guard let imageScannerController = navigationController as? ImageScannerController else {
+            shutterButton.isUserInteractionEnabled = true
+            return
+        }
+        
+        // Add result to scanner controller
+        imageScannerController.addScanResult(scanResult)
+        
+        // Navigate to thumbnail summary
+        imageScannerController.showThumbnailSummary()
 
         shutterButton.isUserInteractionEnabled = true
     }

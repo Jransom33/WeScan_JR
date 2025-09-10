@@ -191,9 +191,22 @@ final class EditScanViewController: UIViewController {
             enhancedScan: enhancedScan
         )
 
-        let reviewViewController = ReviewViewController(results: results)
-        reviewViewController.editingIndex = editingIndex
-        navigationController?.pushViewController(reviewViewController, animated: true)
+        // Check if we're editing from thumbnail summary (new flow) or traditional flow
+        if let editingIndex = editingIndex {
+            // We're editing an existing scan from thumbnail summary
+            print("📸📸📸 EditScan: Updating scan \(editingIndex + 1) and returning to thumbnail summary")
+            
+            guard let imageScannerController = navigationController as? ImageScannerController else { return }
+            imageScannerController.updateScanResultFromThumbnailSummary(results, at: editingIndex)
+            
+            // Return to thumbnail summary (pop back to it)
+            navigationController?.popViewController(animated: true)
+        } else {
+            // Traditional flow - go to review screen
+            let reviewViewController = ReviewViewController(results: results)
+            reviewViewController.editingIndex = editingIndex
+            navigationController?.pushViewController(reviewViewController, animated: true)
+        }
     }
 
     private func displayQuad() {

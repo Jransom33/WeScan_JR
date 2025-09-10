@@ -66,12 +66,21 @@ public struct Quadrilateral: Transformable {
     }
     
     /// The aspect ratio of the Quadrilateral (width/height)
+    /// Uses bounding box approach for more accurate geometric measurement
     var aspectRatio: Double {
-        let width = max(topLeft.distanceTo(point: topRight), bottomLeft.distanceTo(point: bottomRight))
-        let height = max(topLeft.distanceTo(point: bottomLeft), topRight.distanceTo(point: bottomRight))
+        // Get the bounding box (axis-aligned rectangle) of all corner points
+        let minX = min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x)
+        let maxX = max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x)
+        let minY = min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y)
+        let maxY = max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y)
         
-        guard height > 0 else { return 1.0 }
-        return Double(width / height)
+        // Original bounding box calculation
+        let boundingWidth = maxX - minX
+        let boundingHeight = maxY - minY
+
+        // Swap to return height / width for intuitive portrait <1
+        guard boundingWidth > 0 else { return 1.0 }
+        return Double(boundingHeight / boundingWidth)
     }
 
     init(rectangleFeature: CIRectangleFeature) {

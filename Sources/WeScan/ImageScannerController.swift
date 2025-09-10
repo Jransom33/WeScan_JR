@@ -402,6 +402,34 @@ public final class ImageScannerController: UINavigationController {
         
         print("📸📸📸 MultiScan: Updated scan \\(index + 1)")
     }
+    
+    // MARK: - New Thumbnail Summary Functionality
+    
+    /// Shows the thumbnail summary view controller
+    internal func showThumbnailSummary() {
+        let thumbnailSummaryVC = ThumbnailSummaryViewController()
+        thumbnailSummaryVC.delegate = self
+        thumbnailSummaryVC.setScanResults(scanResults)
+        
+        print("📸📸📸 ImageScanner: Showing thumbnail summary with \(scanResults.count) pages")
+        pushViewController(thumbnailSummaryVC, animated: true)
+    }
+    
+    /// Updates a scan result from the thumbnail summary edit flow
+    internal func updateScanResultFromThumbnailSummary(_ result: ImageScannerResults, at index: Int) {
+        guard index >= 0 && index < scanResults.count else { return }
+        scanResults[index] = result
+        
+        print("📸📸📸 ImageScanner: Updated scan \(index + 1) from thumbnail edit")
+        
+        // Find and update the thumbnail summary if it's in the navigation stack
+        for viewController in viewControllers {
+            if let thumbnailSummaryVC = viewController as? ThumbnailSummaryViewController {
+                thumbnailSummaryVC.updateScanResult(at: index, with: result)
+                break
+            }
+        }
+    }
 }
 
 /// Data structure containing information about a scan, including both the image and an optional PDF.
@@ -449,10 +477,10 @@ public struct ImageScannerResults {
     public var doesUserPreferEnhancedScan: Bool
 
     /// The detected rectangle which was used to generate the `scannedImage`.
-    public var detectedRectangle: Quadrilateral
+    public var detectedRectangle: Quadrilateral?
 
     init(
-        detectedRectangle: Quadrilateral,
+        detectedRectangle: Quadrilateral?,
         originalScan: ImageScannerScan,
         croppedScan: ImageScannerScan,
         enhancedScan: ImageScannerScan?,
@@ -465,5 +493,14 @@ public struct ImageScannerResults {
         self.enhancedScan = enhancedScan
 
         self.doesUserPreferEnhancedScan = doesUserPreferEnhancedScan
+    }
+    
+    /// Convenience initializer for simple scan results
+    public init(originalScan: ImageScannerScan, croppedScan: ImageScannerScan, detectedRectangle: Quadrilateral?) {
+        self.originalScan = originalScan
+        self.croppedScan = croppedScan
+        self.detectedRectangle = detectedRectangle
+        self.enhancedScan = nil
+        self.doesUserPreferEnhancedScan = false
     }
 }
