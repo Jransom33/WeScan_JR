@@ -71,7 +71,7 @@ final class RectangleFeaturesFunnel {
 
     /// The value in pixels used to determine if a rectangle is accurate enough to be auto scanned.
     /// A higher value means the auto scan is quicker, but the rectangle will be less accurate. On the other hand, the lower the value, the longer it'll take for the auto scan, but it'll be way more accurate
-    var autoScanMatchingThreshold: CGFloat = 40.0
+    var autoScanMatchingThreshold: CGFloat = 60.0 //was 40.0 if I say revert put it back to 40.0
 
     /// Add a rectangle to the funnel, and if a new rectangle should be displayed, the completion block will be called.
     /// The algorithm works the following way:
