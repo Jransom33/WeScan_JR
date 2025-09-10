@@ -32,16 +32,31 @@ extension Array where Element == Quadrilateral {
         let area = quad.area
         let aspectRatio = quad.aspectRatio
         
+        // CRITICAL: Reject extremely small rectangles (likely text blocks)
+        if area < 300000 {
+            print("📸📸📸 RectScoring: REJECTED - Area too small: \(String(format: "%.0f", area)) < 300k")
+            return 0.0
+        }
+        
+        // CRITICAL: Reject extreme aspect ratios (likely not pages)
+        if aspectRatio < 0.4 || aspectRatio > 2.5 {
+            print("📸📸📸 RectScoring: REJECTED - Extreme aspect ratio: \(String(format: "%.2f", aspectRatio))")
+            return 0.0
+        }
+        
         // Calculate rectangle properties for full-page detection
         let rectangularityScore = calculateRectangularityScore(for: quad)
         let sizeScore = calculateSizeScore(for: quad, referenceArea: maxArea)
         let aspectRatioScore = calculateAspectRatioScore(for: aspectRatio)
         let angleScore = calculateAngleScore(for: quad)
         
-        // Heavily prioritize rectangularity and size for full page detection
-        let finalScore = sizeScore * 0.4 + rectangularityScore * 0.3 + aspectRatioScore * 0.2 + angleScore * 0.1
+        // Apply size threshold bonus for large rectangles
+        let sizeBonus = area > 600000 ? 1.2 : 1.0
         
-        print("📸📸📸 RectScoring: Area: \(String(format: "%.0f", area)), AspectRatio: \(String(format: "%.2f", aspectRatio)), Size: \(String(format: "%.2f", sizeScore)), Rectangularity: \(String(format: "%.2f", rectangularityScore)), Angle: \(String(format: "%.2f", angleScore)), FinalScore: \(String(format: "%.2f", finalScore))")
+        // Heavily prioritize rectangularity and size for full page detection
+        let finalScore = (sizeScore * 0.5 + rectangularityScore * 0.3 + aspectRatioScore * 0.15 + angleScore * 0.05) * sizeBonus
+        
+        print("📸📸📸 RectScoring: Area: \(String(format: "%.0f", area)), AspectRatio: \(String(format: "%.2f", aspectRatio)), Size: \(String(format: "%.2f", sizeScore)), Rectangularity: \(String(format: "%.2f", rectangularityScore)), Angle: \(String(format: "%.2f", angleScore)), SizeBonus: \(String(format: "%.1f", sizeBonus)), FinalScore: \(String(format: "%.2f", finalScore))")
         
         return finalScore
     }
