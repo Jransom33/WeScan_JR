@@ -178,6 +178,16 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     }
 
     internal func capturePhoto() {
+        // Log the aspect ratio of the rectangle being captured
+        if let currentRect = displayedRectangleResult?.rectangle {
+            let aspectRatio = currentRect.aspectRatio
+            let area = currentRect.area
+            print("🔥 MANUAL CAPTURE - IMAGE ASPECT RATIO: \(String(format: "%.3f", aspectRatio)) | AREA: \(String(format: "%.0f", area)) pixels")
+            print("🔥 MANUAL CAPTURE - RECTANGLE BOUNDS: TL(\(String(format: "%.1f", currentRect.topLeft.x)), \(String(format: "%.1f", currentRect.topLeft.y))) TR(\(String(format: "%.1f", currentRect.topRight.x)), \(String(format: "%.1f", currentRect.topRight.y))) BR(\(String(format: "%.1f", currentRect.bottomRight.x)), \(String(format: "%.1f", currentRect.bottomRight.y))) BL(\(String(format: "%.1f", currentRect.bottomLeft.x)), \(String(format: "%.1f", currentRect.bottomLeft.y)))")
+        } else {
+            print("🔥 MANUAL CAPTURE - NO RECTANGLE DETECTED (will capture full frame)")
+        }
+        
         guard let connection = photoOutput.connection(with: .video), connection.isEnabled, connection.isActive else {
             let error = ImageScannerControllerError.capture
             delegate?.captureSessionManager(self, didFailWithError: error)
@@ -238,6 +248,13 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                 self.displayRectangleResult(rectangleResult: RectangleDetectorResult(rectangle: rectangle, imageSize: imageSize))
                 if shouldAutoScan, CaptureSession.current.isAutoScanEnabled, !CaptureSession.current.isEditing {
                     print("📸📸📸 CaptureSession: CAPTURING PHOTO! 📷")
+                    
+                    // Calculate and log the exact aspect ratio of the captured rectangle
+                    let capturedAspectRatio = rectangle.aspectRatio
+                    let capturedArea = rectangle.area
+                    print("🔥 CAPTURED IMAGE ASPECT RATIO: \(String(format: "%.3f", capturedAspectRatio)) | AREA: \(String(format: "%.0f", capturedArea)) pixels")
+                    print("🔥 RECTANGLE BOUNDS: TL(\(String(format: "%.1f", rectangle.topLeft.x)), \(String(format: "%.1f", rectangle.topLeft.y))) TR(\(String(format: "%.1f", rectangle.topRight.x)), \(String(format: "%.1f", rectangle.topRight.y))) BR(\(String(format: "%.1f", rectangle.bottomRight.x)), \(String(format: "%.1f", rectangle.bottomRight.y))) BL(\(String(format: "%.1f", rectangle.bottomLeft.x)), \(String(format: "%.1f", rectangle.bottomLeft.y)))")
+                    
                     capturePhoto()
                 } else if shouldAutoScan {
                     print("📸📸📸 CaptureSession: Auto-scan triggered but conditions not met - autoScan: \(CaptureSession.current.isAutoScanEnabled), editing: \(CaptureSession.current.isEditing)")
