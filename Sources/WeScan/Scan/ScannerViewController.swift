@@ -58,6 +58,13 @@ public final class ScannerViewController: UIViewController {
 
         return button
     }()
+    
+    private lazy var textDetectionButton: UIBarButtonItem = {
+        let image = UIImage(systemName: "text.viewfinder")
+        let button = UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(toggleTextDetection))
+        button.tintColor = .white
+        return button
+    }()
 
     private lazy var activityIndicator: UIActivityIndicatorView = {
         let activityIndicator = UIActivityIndicatorView(style: .gray)
@@ -131,13 +138,16 @@ public final class ScannerViewController: UIViewController {
 
     private func setupNavigationBar() {
         navigationItem.setLeftBarButton(flashButton, animated: false)
-        navigationItem.setRightBarButton(autoScanButton, animated: false)
+        navigationItem.setRightBarButtonItems([autoScanButton, textDetectionButton], animated: false)
 
         if UIImagePickerController.isFlashAvailable(for: .rear) == false {
             let flashOffImage = UIImage(systemName: "bolt.slash.fill", named: "flashUnavailable", in: Bundle(for: ScannerViewController.self), compatibleWith: nil)
             flashButton.image = flashOffImage
             flashButton.tintColor = UIColor.lightGray
         }
+        
+        // Update text detection button appearance
+        updateTextDetectionButton()
     }
 
     private func setupConstraints() {
@@ -262,6 +272,25 @@ public final class ScannerViewController: UIViewController {
             flashEnabled = false
             flashButton.image = flashOffImage
             flashButton.tintColor = UIColor.lightGray
+        }
+    }
+
+    @objc private func toggleTextDetection() {
+        guard let captureSessionManager = captureSessionManager else { return }
+        captureSessionManager.useTextBasedDetection.toggle()
+        updateTextDetectionButton()
+        
+        let statusText = captureSessionManager.useTextBasedDetection ? "Text+Vision" : "Vision Only"
+        print("📸📸📸 TextDetection: Switched to \(statusText) detection mode")
+    }
+    
+    private func updateTextDetectionButton() {
+        guard let captureSessionManager = captureSessionManager else { return }
+        
+        if captureSessionManager.useTextBasedDetection {
+            textDetectionButton.tintColor = .systemBlue  // Active blue color
+        } else {
+            textDetectionButton.tintColor = .white  // Inactive white color
         }
     }
 

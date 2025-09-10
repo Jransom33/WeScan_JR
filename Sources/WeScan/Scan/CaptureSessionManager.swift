@@ -10,6 +10,7 @@ import AVFoundation
 import CoreMotion
 import Foundation
 import UIKit
+import Vision
 
 /// A set of functions that inform the delegate object of the state of the detection.
 protocol RectangleDetectionDelegateProtocol: NSObjectProtocol {
@@ -54,6 +55,9 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     private let rectangleFunnel = RectangleFeaturesFunnel()
     weak var delegate: RectangleDetectionDelegateProtocol?
     private var displayedRectangleResult: RectangleDetectorResult?
+    
+    /// Enable text-based rectangle detection (requires iOS 11+)
+    var useTextBasedDetection: Bool = true
     private var photoOutput = AVCapturePhotoOutput()
 
     /// Whether the CaptureSessionManager should be detecting quadrilaterals.
@@ -197,8 +201,16 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
         let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
 
         if #available(iOS 11.0, *) {
-            VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { rectangle in
-                self.processRectangle(rectangle: rectangle, imageSize: imageSize)
+            if useTextBasedDetection {
+                // Use hybrid detection (Vision + Text)
+                HybridRectangleDetector.detectBestRectangle(forPixelBuffer: pixelBuffer) { rectangle in
+                    self.processRectangle(rectangle: rectangle, imageSize: imageSize)
+                }
+            } else {
+                // Use traditional Vision detection only
+                VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { rectangle in
+                    self.processRectangle(rectangle: rectangle, imageSize: imageSize)
+                }
             }
         } else {
             let finalImage = CIImage(cvPixelBuffer: pixelBuffer)
