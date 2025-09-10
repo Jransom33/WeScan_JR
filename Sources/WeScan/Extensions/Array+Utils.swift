@@ -33,13 +33,13 @@ extension Array where Element == Quadrilateral {
         let aspectRatio = quad.aspectRatio
         
         // CRITICAL: Reject extremely small rectangles (likely text blocks)
-        if area < 300000 {
-            print("📸📸📸 RectScoring: REJECTED - Area too small: \(String(format: "%.0f", area)) < 300k")
+        if area < 500000 {
+            print("📸📸📸 RectScoring: REJECTED - Area too small: \(String(format: "%.0f", area)) < 500k")
             return 0.0
         }
         
         // CRITICAL: Reject extreme aspect ratios (likely not pages)
-        if aspectRatio < 0.4 || aspectRatio > 2.5 {
+        if aspectRatio < 0.4 || aspectRatio > 1.4 {
             print("📸📸📸 RectScoring: REJECTED - Extreme aspect ratio: \(String(format: "%.2f", aspectRatio))")
             return 0.0
         }

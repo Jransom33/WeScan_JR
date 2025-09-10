@@ -61,7 +61,7 @@ enum VisionRectangleDetector {
             rectDetectRequest.minimumConfidence = 0.5
             rectDetectRequest.maximumObservations = 25
             rectDetectRequest.minimumAspectRatio = 0.5
-            rectDetectRequest.maximumAspectRatio = 2.0
+            rectDetectRequest.maximumAspectRatio = 1.4
 
             return rectDetectRequest
         }()
