@@ -75,6 +75,7 @@ FourCornerSource/
 COREML_*.md
 *COREML*.md
 ML_INTEGRATION*.md
+COREML_API.md
 
 # Training and ML Development
 # ===========================
