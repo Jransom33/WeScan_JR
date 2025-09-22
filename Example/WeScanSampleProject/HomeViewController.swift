@@ -139,9 +139,9 @@ final class HomeViewController: UIViewController {
     }
 
     func scanImage() {
-        // MARK: - New CoreML Usage Pattern (iOS 11.0+)
+        // MARK: - New CoreML Usage Pattern with Confidence Configuration (iOS 11.0+)
         /*
-        // Option 1: Configure WeScan with a CoreML model from bundle
+        // Option 1: Configure with default confidence settings
         do {
             try ImageScannerController.configure(modelName: "CornerKeypoints_model_epoch_30_simple")
             // Now the scanner will use your custom CoreML model for corner detection
@@ -149,8 +149,20 @@ final class HomeViewController: UIViewController {
             print("Failed to configure WeScan with CoreML model: \(error)")
             // Will use default rectangle detection
         }
-        
-        // Option 2: Configure with MLModel directly
+
+        // Option 2: Configure with custom confidence settings
+        do {
+            let config = CoreMLDetectionConfig(
+                minConfidence: -1.5,      // Stricter confidence threshold (default: -2.0)
+                minCornerDistance: 10.0,  // Minimum distance between corners (default: 5.0)
+                applySigmoid: true        // Convert logits to probabilities (default: false)
+            )
+            try ImageScannerController.configure(modelName: "CornerKeypoints_model_epoch_30_simple", config: config)
+        } catch {
+            print("Failed to configure WeScan with CoreML model: \(error)")
+        }
+
+        // Option 3: Configure with MLModel directly and custom config
         /*
         do {
             guard let modelURL = Bundle.main.url(forResource: "YourModel", withExtension: "mlpackage") else {
@@ -158,7 +170,13 @@ final class HomeViewController: UIViewController {
                 return
             }
             let model = try MLModel(contentsOf: modelURL)
-            try ImageScannerController.configure(with: model)
+            
+            let config = CoreMLDetectionConfig(
+                minConfidence: -1.0,      // Very strict confidence
+                minCornerDistance: 15.0,  // Ensure corners are well separated
+                applySigmoid: false       // Keep raw logits for debugging
+            )
+            try ImageScannerController.configure(with: model, config: config)
         } catch {
             print("Failed to configure WeScan: \(error)")
         }

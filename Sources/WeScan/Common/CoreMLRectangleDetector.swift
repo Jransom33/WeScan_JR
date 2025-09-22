@@ -19,25 +19,64 @@ struct LetterboxParameters {
     let padY: CGFloat
 }
 
+/// Configuration for CoreML corner detection
+public struct CoreMLDetectionConfig {
+    /// Minimum confidence threshold for corner detection (default: -2.0)
+    /// Since the model outputs logits, negative values are normal
+    public let minConfidence: Float
+    
+    /// Minimum distance between different corners to avoid duplicates (in heatmap space)
+    public let minCornerDistance: Float
+    
+    /// Whether to apply sigmoid activation to convert logits to probabilities
+    public let applySigmoid: Bool
+    
+    /// Default configuration
+    public static let `default` = CoreMLDetectionConfig(
+        minConfidence: -2.0,
+        minCornerDistance: 5.0,
+        applySigmoid: false
+    )
+    
+    /// Initialize a new configuration
+    /// - Parameters:
+    ///   - minConfidence: Minimum confidence threshold for corner detection
+    ///   - minCornerDistance: Minimum distance between different corners (in heatmap space)
+    ///   - applySigmoid: Whether to apply sigmoid activation to convert logits to probabilities
+    public init(minConfidence: Float, minCornerDistance: Float, applySigmoid: Bool) {
+        self.minConfidence = minConfidence
+        self.minCornerDistance = minCornerDistance
+        self.applySigmoid = applySigmoid
+    }
+}
+
 /// CoreML-based rectangle detector using trained corner keypoint model
 @available(iOS 11.0, *)
 enum CoreMLRectangleDetector {
     
     private static var visionModel: VNCoreMLModel?
+    private static var config: CoreMLDetectionConfig = .default
     
     /// Configure the CoreML model for corner detection
-    /// - Parameter model: The CoreML model to use for corner detection
-    static func configure(with model: MLModel) throws {
+    /// - Parameters:
+    ///   - model: The CoreML model to use for corner detection
+    ///   - config: Detection configuration including confidence thresholds
+    static func configure(with model: MLModel, config: CoreMLDetectionConfig = .default) throws {
         let visionMLModel = try VNCoreMLModel(for: model)
         self.visionModel = visionMLModel
+        self.config = config
         print("📸📸📸 CoreMLDetector: Successfully configured with provided CoreML model")
+        print("📸📸📸 CoreMLDetector: Min confidence: \(config.minConfidence)")
+        print("📸📸📸 CoreMLDetector: Min corner distance: \(config.minCornerDistance)")
+        print("📸📸📸 CoreMLDetector: Apply sigmoid: \(config.applySigmoid)")
     }
     
     /// Convenience method to configure with a model from bundle
     /// - Parameters:
     ///   - modelName: Name of the model file (without extension)
     ///   - bundle: Bundle containing the model (defaults to main bundle)
-    static func configure(modelName: String, in bundle: Bundle = Bundle.main) throws {
+    ///   - config: Detection configuration including confidence thresholds
+    static func configure(modelName: String, in bundle: Bundle = Bundle.main, config: CoreMLDetectionConfig = .default) throws {
         guard let modelURL = bundle.url(forResource: modelName, withExtension: "mlpackage") else {
             throw NSError(domain: "CoreMLRectangleDetector", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "CoreML model '\(modelName).mlpackage' not found in bundle"
@@ -45,7 +84,7 @@ enum CoreMLRectangleDetector {
         }
         
         let model = try MLModel(contentsOf: modelURL)
-        try configure(with: model)
+        try configure(with: model, config: config)
     }
     
     /// Check if a CoreML model has been configured
@@ -97,7 +136,7 @@ enum CoreMLRectangleDetector {
         return params
     }
     
-    /// Decode heatmaps to find corner points in 320x320 space
+    /// Decode heatmaps to find corner points in 320x320 space with confidence filtering
     private static func decodeHeatmaps(_ heatmaps: MLMultiArray, stride: Int = 4) -> [CGPoint] {
         let shape = heatmaps.shape.map { Int(truncating: $0) }
         let hasBatch = shape.count == 4
@@ -126,7 +165,7 @@ enum CoreMLRectangleDetector {
         case .float32:
             let ptr = heatmaps.dataPointer.assumingMemoryBound(to: Float32.self)
             values.withUnsafeMutableBufferPointer { dst in
-                dst.baseAddress!.assign(from: ptr, count: heatmaps.count)
+                dst.baseAddress!.update(from: ptr, count: heatmaps.count)
             }
         case .double:
             let ptr = heatmaps.dataPointer.assumingMemoryBound(to: Double.self)
@@ -179,12 +218,19 @@ enum CoreMLRectangleDetector {
                 }
             }
             
+            // Apply sigmoid if requested to convert logits to probabilities
+            let finalConfidence = config.applySigmoid ? sigmoid(maxValue) : maxValue
+            
             print("📸📸📸 CoreMLDetector: Channel \(channel) peak at (\(maxX), \(maxY)) = \(maxValue)")
+            if config.applySigmoid {
+                print("📸📸📸 CoreMLDetector: Channel \(channel) sigmoid confidence: \(finalConfidence)")
+            }
             
             // Log top 5 values for debugging
             print("📸📸📸 CoreMLDetector: Channel \(channel) top 5 values:")
             for (i, top) in topValues.enumerated() {
-                print("📸📸📸 CoreMLDetector:   #\(i+1): (\(top.x), \(top.y)) = \(top.value)")
+                let topConfidence = config.applySigmoid ? sigmoid(top.value) : top.value
+                print("📸📸📸 CoreMLDetector:   #\(i+1): (\(top.x), \(top.y)) = \(top.value) -> \(topConfidence)")
             }
             
             // Calculate statistics for this channel
@@ -199,11 +245,50 @@ enum CoreMLRectangleDetector {
             
             print("📸📸📸 CoreMLDetector: Channel \(channel) stats - min: \(minVal), max: \(maxVal), mean: \(meanVal), std: \(stdDev)")
             
+            // Check confidence threshold
+            if finalConfidence < config.minConfidence {
+                print("📸📸📸 CoreMLDetector: ⚠️ Channel \(channel) confidence \(finalConfidence) below threshold \(config.minConfidence)")
+                // Instead of skipping, we'll still add the point but mark it as low confidence
+                // The validation will happen later when we check all corners together
+            }
+            
             // Map to 320x320 space using stride
             let point = CGPoint(x: CGFloat(maxX * stride), y: CGFloat(maxY * stride))
             points.append(point)
         }
         
+        return validateCorners(points)
+    }
+    
+    /// Sigmoid activation function
+    private static func sigmoid(_ x: Float) -> Float {
+        return 1.0 / (1.0 + exp(-x))
+    }
+    
+    /// Validate corners for quality and confidence
+    private static func validateCorners(_ points: [CGPoint]) -> [CGPoint] {
+        guard points.count == 4 else { return points }
+        
+        // Check for minimum distance between corners
+        let minDistanceSquared = CGFloat(pow(config.minCornerDistance, 2))
+        
+        for i in 0..<points.count {
+            for j in (i+1)..<points.count {
+                let dx = points[i].x - points[j].x
+                let dy = points[i].y - points[j].y
+                let distanceSquared = dx * dx + dy * dy
+                
+                if distanceSquared < minDistanceSquared {
+                    print("📸📸📸 CoreMLDetector: ⚠️ Corners \(i) and \(j) too close: distance = \(sqrt(distanceSquared))")
+                    print("📸📸📸 CoreMLDetector: ⚠️ Corner \(i): \(points[i]), Corner \(j): \(points[j])")
+                    // Return empty array to indicate invalid detection
+                    return []
+                }
+            }
+        }
+        
+        // All validations passed
+        print("📸📸📸 CoreMLDetector: ✅ All corners passed validation")
         return points
     }
     

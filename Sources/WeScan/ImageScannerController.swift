@@ -75,19 +75,22 @@ public final class ImageScannerController: UINavigationController {
     
     /// Configure WeScan with a CoreML model for corner detection
     /// This must be called before using the scanner
-    /// - Parameter model: The CoreML model to use for corner detection
+    /// - Parameters:
+    ///   - model: The CoreML model to use for corner detection
+    ///   - config: Detection configuration including confidence thresholds
     @available(iOS 11.0, *)
-    public static func configure(with model: MLModel) throws {
-        try CoreMLRectangleDetector.configure(with: model)
+    public static func configure(with model: MLModel, config: CoreMLDetectionConfig = .default) throws {
+        try CoreMLRectangleDetector.configure(with: model, config: config)
     }
     
     /// Configure WeScan with a CoreML model from bundle
     /// - Parameters:
     ///   - modelName: Name of the model file (without extension)
     ///   - bundle: Bundle containing the model (defaults to main bundle)
+    ///   - config: Detection configuration including confidence thresholds
     @available(iOS 11.0, *)
-    public static func configure(modelName: String, in bundle: Bundle = Bundle.main) throws {
-        try CoreMLRectangleDetector.configure(modelName: modelName, in: bundle)
+    public static func configure(modelName: String, in bundle: Bundle = Bundle.main, config: CoreMLDetectionConfig = .default) throws {
+        try CoreMLRectangleDetector.configure(modelName: modelName, in: bundle, config: config)
     }
     
     /// Check if WeScan has been configured with a CoreML model
