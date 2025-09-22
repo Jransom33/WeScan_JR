@@ -144,6 +144,9 @@ enum CoreMLRectangleDetector {
         let height = hasBatch ? shape[2] : shape[1]
         let width = hasBatch ? shape[3] : shape[2]
 
+        print("📸📸📸 CoreMLDetector: ===========================================")
+        print("📸📸📸 CoreMLDetector: 🔍 HEATMAP ANALYSIS STARTING")
+        print("📸📸📸 CoreMLDetector: ===========================================")
         print("📸📸📸 CoreMLDetector: Heatmap details:")
         print("📸📸📸 CoreMLDetector:   dataType: \(heatmaps.dataType.rawValue)")
         print("📸📸📸 CoreMLDetector:   shape: \(shape)")
@@ -189,14 +192,22 @@ enum CoreMLRectangleDetector {
         }
 
         var points: [CGPoint] = []
+        var channelConfidences: [Float] = []
+        
+        // Channel names for better debugging
+        let channelNames = ["TOP-LEFT", "TOP-RIGHT", "BOTTOM-RIGHT", "BOTTOM-LEFT"]
         
         // Find peak in each channel (corner)
         for channel in 0..<channels {
+            print("📸📸📸 CoreMLDetector: -------------------------------------------")
+            print("📸📸📸 CoreMLDetector: 🎯 ANALYZING CHANNEL \(channel) (\(channelNames[channel]))")
+            print("📸📸📸 CoreMLDetector: -------------------------------------------")
+            
             var maxValue: Float = -Float.infinity
             var maxY = 0
             var maxX = 0
             
-            // Track top 5 values for debugging
+            // Track top 10 values for debugging
             var topValues: [(value: Float, x: Int, y: Int)] = []
             
             for y in 0..<height {
@@ -211,26 +222,30 @@ enum CoreMLRectangleDetector {
                     
                     // Keep track of top values for debugging
                     topValues.append((value: value, x: x, y: y))
-                    topValues.sort { $0.value > $1.value }
-                    if topValues.count > 5 {
-                        topValues.removeLast()
-                    }
                 }
+            }
+            
+            // Sort and keep top 10
+            topValues.sort { $0.value > $1.value }
+            if topValues.count > 10 {
+                topValues = Array(topValues.prefix(10))
             }
             
             // Apply sigmoid if requested to convert logits to probabilities
             let finalConfidence = config.applySigmoid ? sigmoid(maxValue) : maxValue
+            channelConfidences.append(finalConfidence)
             
-            print("📸📸📸 CoreMLDetector: Channel \(channel) peak at (\(maxX), \(maxY)) = \(maxValue)")
+            print("📸📸📸 CoreMLDetector: Channel \(channel) (\(channelNames[channel])) peak at (\(maxX), \(maxY)) = \(maxValue)")
             if config.applySigmoid {
                 print("📸📸📸 CoreMLDetector: Channel \(channel) sigmoid confidence: \(finalConfidence)")
             }
             
-            // Log top 5 values for debugging
-            print("📸📸📸 CoreMLDetector: Channel \(channel) top 5 values:")
+            // Log top 10 values for debugging
+            print("📸📸📸 CoreMLDetector: Channel \(channel) top 10 values:")
             for (i, top) in topValues.enumerated() {
                 let topConfidence = config.applySigmoid ? sigmoid(top.value) : top.value
-                print("📸📸📸 CoreMLDetector:   #\(i+1): (\(top.x), \(top.y)) = \(top.value) -> \(topConfidence)")
+                let marker = (top.x == maxX && top.y == maxY) ? "👑" : "  "
+                print("📸📸📸 CoreMLDetector:   \(marker)#\(i+1): (\(top.x), \(top.y)) = \(String(format: "%.6f", top.value)) -> \(String(format: "%.6f", topConfidence))")
             }
             
             // Calculate statistics for this channel
@@ -243,18 +258,49 @@ enum CoreMLRectangleDetector {
             let variance = channelValues.map { pow($0 - meanVal, 2) }.reduce(0, +) / Float(channelValues.count)
             let stdDev = sqrt(variance)
             
-            print("📸📸📸 CoreMLDetector: Channel \(channel) stats - min: \(minVal), max: \(maxVal), mean: \(meanVal), std: \(stdDev)")
+            print("📸📸📸 CoreMLDetector: Channel \(channel) stats:")
+            print("📸📸📸 CoreMLDetector:   min: \(String(format: "%.6f", minVal))")
+            print("📸📸📸 CoreMLDetector:   max: \(String(format: "%.6f", maxVal))")
+            print("📸📸📸 CoreMLDetector:   mean: \(String(format: "%.6f", meanVal))")
+            print("📸📸📸 CoreMLDetector:   std: \(String(format: "%.6f", stdDev))")
             
             // Check confidence threshold
             if finalConfidence < config.minConfidence {
                 print("📸📸📸 CoreMLDetector: ⚠️ Channel \(channel) confidence \(finalConfidence) below threshold \(config.minConfidence)")
-                // Instead of skipping, we'll still add the point but mark it as low confidence
-                // The validation will happen later when we check all corners together
             }
             
             // Map to 320x320 space using stride
             let point = CGPoint(x: CGFloat(maxX * stride), y: CGFloat(maxY * stride))
             points.append(point)
+            
+            print("📸📸📸 CoreMLDetector: Channel \(channel) final point: (\(maxX), \(maxY)) -> (\(point.x), \(point.y)) in 320x320 space")
+        }
+        
+        // Analysis of channel relationships
+        print("📸📸📸 CoreMLDetector: ===========================================")
+        print("📸📸📸 CoreMLDetector: 🔍 CROSS-CHANNEL ANALYSIS")
+        print("📸📸📸 CoreMLDetector: ===========================================")
+        
+        // Check for duplicate peak locations
+        for i in 0..<points.count {
+            for j in (i+1)..<points.count {
+                let distance = sqrt(pow(points[i].x - points[j].x, 2) + pow(points[i].y - points[j].y, 2))
+                print("📸📸📸 CoreMLDetector: Distance between \(channelNames[i]) and \(channelNames[j]): \(String(format: "%.2f", distance))")
+                
+                if distance < 5.0 {
+                    print("📸📸📸 CoreMLDetector: ⚠️ DUPLICATE PEAKS DETECTED! \(channelNames[i]) and \(channelNames[j]) are very close!")
+                }
+            }
+        }
+        
+        // Check confidence spread
+        let minConf = channelConfidences.min() ?? 0
+        let maxConf = channelConfidences.max() ?? 0
+        let confSpread = maxConf - minConf
+        print("📸📸📸 CoreMLDetector: Confidence spread: \(String(format: "%.6f", confSpread)) (min: \(String(format: "%.6f", minConf)), max: \(String(format: "%.6f", maxConf)))")
+        
+        if confSpread < 0.1 {
+            print("📸📸📸 CoreMLDetector: ⚠️ LOW CONFIDENCE SPREAD - Model may be uncertain!")
         }
         
         return validateCorners(points)
@@ -269,27 +315,66 @@ enum CoreMLRectangleDetector {
     private static func validateCorners(_ points: [CGPoint]) -> [CGPoint] {
         guard points.count == 4 else { return points }
         
+        print("📸📸📸 CoreMLDetector: ===========================================")
+        print("📸📸📸 CoreMLDetector: 🔍 CORNER VALIDATION")
+        print("📸📸📸 CoreMLDetector: ===========================================")
+        
+        let channelNames = ["TOP-LEFT", "TOP-RIGHT", "BOTTOM-RIGHT", "BOTTOM-LEFT"]
+        
         // Check for minimum distance between corners
         let minDistanceSquared = CGFloat(pow(config.minCornerDistance, 2))
+        var hasCloseCorners = false
         
         for i in 0..<points.count {
             for j in (i+1)..<points.count {
                 let dx = points[i].x - points[j].x
                 let dy = points[i].y - points[j].y
                 let distanceSquared = dx * dx + dy * dy
+                let distance = sqrt(distanceSquared)
+                
+                print("📸📸📸 CoreMLDetector: Distance \(channelNames[i]) ↔ \(channelNames[j]): \(String(format: "%.2f", distance))")
                 
                 if distanceSquared < minDistanceSquared {
-                    print("📸📸📸 CoreMLDetector: ⚠️ Corners \(i) and \(j) too close: distance = \(sqrt(distanceSquared))")
-                    print("📸📸📸 CoreMLDetector: ⚠️ Corner \(i): \(points[i]), Corner \(j): \(points[j])")
-                    // Return empty array to indicate invalid detection
-                    return []
+                    print("📸📸📸 CoreMLDetector: ❌ VALIDATION FAILED: \(channelNames[i]) and \(channelNames[j]) too close!")
+                    print("📸📸📸 CoreMLDetector: ❌ \(channelNames[i]): \(points[i])")
+                    print("📸📸📸 CoreMLDetector: ❌ \(channelNames[j]): \(points[j])")
+                    print("📸📸📸 CoreMLDetector: ❌ Distance: \(String(format: "%.2f", distance)), Min required: \(String(format: "%.2f", sqrt(minDistanceSquared)))")
+                    hasCloseCorners = true
                 }
             }
         }
         
+        if hasCloseCorners {
+            print("📸📸📸 CoreMLDetector: ❌ REJECTING DETECTION due to overlapping corners")
+            return []
+        }
+        
+        // Check if points form a reasonable quadrilateral
+        let area = calculateQuadrilateralArea(points)
+        print("📸📸📸 CoreMLDetector: Quadrilateral area: \(String(format: "%.2f", area))")
+        
+        if area < 1000 { // Minimum area threshold in 320x320 space
+            print("📸📸📸 CoreMLDetector: ❌ REJECTING DETECTION due to small area (\(String(format: "%.2f", area)) < 1000)")
+            return []
+        }
+        
         // All validations passed
-        print("📸📸📸 CoreMLDetector: ✅ All corners passed validation")
+        print("📸📸📸 CoreMLDetector: ✅ ALL VALIDATIONS PASSED")
         return points
+    }
+    
+    /// Calculate area of quadrilateral using shoelace formula
+    private static func calculateQuadrilateralArea(_ points: [CGPoint]) -> CGFloat {
+        guard points.count == 4 else { return 0 }
+        
+        // Shoelace formula for polygon area
+        var area: CGFloat = 0
+        for i in 0..<4 {
+            let j = (i + 1) % 4
+            area += points[i].x * points[j].y
+            area -= points[j].x * points[i].y
+        }
+        return abs(area) / 2.0
     }
     
     /// Map points from 320x320 space back to original image coordinates

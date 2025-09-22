@@ -98,6 +98,29 @@ public final class ImageScannerController: UINavigationController {
     public static var isConfigured: Bool {
         return CoreMLRectangleDetector.isConfigured
     }
+    
+    /// Configure with debugging-friendly settings for troubleshooting model predictions
+    /// Uses lenient confidence thresholds and enables detailed logging
+    @available(iOS 11.0, *)
+    public static func configureWithDebugSettings(with model: MLModel) throws {
+        let debugConfig = CoreMLDetectionConfig(
+            minConfidence: -3.0,        // Very lenient for debugging
+            minCornerDistance: 10.0,    // Require reasonable separation
+            applySigmoid: true          // Show probabilities for easier interpretation
+        )
+        try CoreMLRectangleDetector.configure(with: model, config: debugConfig)
+    }
+    
+    /// Configure with debugging-friendly settings using model name
+    @available(iOS 11.0, *)
+    public static func configureWithDebugSettings(modelName: String, in bundle: Bundle = Bundle.main) throws {
+        let debugConfig = CoreMLDetectionConfig(
+            minConfidence: -3.0,        // Very lenient for debugging
+            minCornerDistance: 10.0,    // Require reasonable separation
+            applySigmoid: true          // Show probabilities for easier interpretation
+        )
+        try CoreMLRectangleDetector.configure(modelName: modelName, in: bundle, config: debugConfig)
+    }
 
     // MARK: - Delegates
     
