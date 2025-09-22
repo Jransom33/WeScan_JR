@@ -90,40 +90,80 @@ enum CoreMLRectangleDetector {
     
     /// Decode heatmaps to find corner points in 320x320 space
     private static func decodeHeatmaps(_ heatmaps: MLMultiArray, stride: Int = 4) -> [CGPoint] {
-        guard heatmaps.count >= 4 * 80 * 80 else {
-            print("📸📸📸 CoreMLDetector: Unexpected heatmap size")
+        let shape = heatmaps.shape.map { Int(truncating: $0) }
+        let hasBatch = shape.count == 4
+        let channels = hasBatch ? shape[1] : shape[0]
+        let height = hasBatch ? shape[2] : shape[1]
+        let width = hasBatch ? shape[3] : shape[2]
+
+        print("📸📸📸 CoreMLDetector: Heatmap details:")
+        print("📸📸📸 CoreMLDetector:   dataType: \(heatmaps.dataType.rawValue)")
+        print("📸📸📸 CoreMLDetector:   shape: \(shape)")
+        print("📸📸📸 CoreMLDetector:   strides: \(heatmaps.strides)")
+        print("📸📸📸 CoreMLDetector:   hasBatch: \(hasBatch), channels: \(channels), h: \(height), w: \(width)")
+
+        guard channels == 4 else {
+            print("📸📸📸 CoreMLDetector: ❌ Expected 4 channels, got \(channels)")
             return []
         }
-        
-        let channels = 4
-        let height = 80
-        let width = 80
+        guard height == 80 && width == 80 else {
+            print("📸📸📸 CoreMLDetector: ❌ Expected 80x80 heatmaps, got \(height)x\(width)")
+            return []
+        }
+
+        // Read values safely based on data type
+        var values = [Float](repeating: 0, count: heatmaps.count)
+        switch heatmaps.dataType {
+        case .float32:
+            let ptr = heatmaps.dataPointer.assumingMemoryBound(to: Float32.self)
+            values.withUnsafeMutableBufferPointer { dst in
+                dst.baseAddress!.assign(from: ptr, count: heatmaps.count)
+            }
+        case .double:
+            let ptr = heatmaps.dataPointer.assumingMemoryBound(to: Double.self)
+            for i in 0..<heatmaps.count {
+                values[i] = Float(ptr[i])
+            }
+        default:
+            // Safe but slower fallback for any data type
+            for i in 0..<heatmaps.count {
+                values[i] = heatmaps[i].floatValue
+            }
+        }
+
+        // Index function to handle batch dimension
+        func index(_ c: Int, _ y: Int, _ x: Int) -> Int {
+            if hasBatch {
+                return ((0 * channels + c) * height + y) * width + x
+            } else {
+                return (c * height + y) * width + x
+            }
+        }
+
         var points: [CGPoint] = []
         
-        // Get pointer to the data
-        let dataPointer = UnsafeMutablePointer<Double>(OpaquePointer(heatmaps.dataPointer))
-        let countPerMap = height * width
-        
+        // Find peak in each channel (corner)
         for channel in 0..<channels {
-            let baseIndex = channel * countPerMap
-            var maxIndex = 0
-            var maxValue = -Double.infinity
+            var maxValue: Float = -Float.infinity
+            var maxY = 0
+            var maxX = 0
             
-            // Find the maximum value in this channel
-            for i in 0..<countPerMap {
-                let value = dataPointer[baseIndex + i]
-                if value > maxValue {
-                    maxValue = value
-                    maxIndex = i
+            for y in 0..<height {
+                for x in 0..<width {
+                    let idx = index(channel, y, x)
+                    let value = values[idx]
+                    if value > maxValue {
+                        maxValue = value
+                        maxY = y
+                        maxX = x
+                    }
                 }
             }
             
-            // Convert linear index to 2D coordinates
-            let y = maxIndex / width
-            let x = maxIndex % width
+            print("📸📸📸 CoreMLDetector: Channel \(channel) peak at (\(maxX), \(maxY)) = \(maxValue)")
             
             // Map to 320x320 space using stride
-            let point = CGPoint(x: CGFloat(x * stride), y: CGFloat(y * stride))
+            let point = CGPoint(x: CGFloat(maxX * stride), y: CGFloat(maxY * stride))
             points.append(point)
         }
         
