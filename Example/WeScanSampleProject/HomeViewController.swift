@@ -139,6 +139,32 @@ final class HomeViewController: UIViewController {
     }
 
     func scanImage() {
+        // MARK: - New CoreML Usage Pattern (iOS 11.0+)
+        /*
+        // Option 1: Configure WeScan with a CoreML model from bundle
+        do {
+            try ImageScannerController.configure(modelName: "CornerKeypoints_model_epoch_30_simple")
+            // Now the scanner will use your custom CoreML model for corner detection
+        } catch {
+            print("Failed to configure WeScan with CoreML model: \(error)")
+            // Will use default rectangle detection
+        }
+        
+        // Option 2: Configure with MLModel directly
+        /*
+        do {
+            guard let modelURL = Bundle.main.url(forResource: "YourModel", withExtension: "mlpackage") else {
+                print("CoreML model not found")
+                return
+            }
+            let model = try MLModel(contentsOf: modelURL)
+            try ImageScannerController.configure(with: model)
+        } catch {
+            print("Failed to configure WeScan: \(error)")
+        }
+        */
+        */
+        
         let scannerViewController = ImageScannerController(delegate: self)
         scannerViewController.modalPresentationStyle = .fullScreen
 

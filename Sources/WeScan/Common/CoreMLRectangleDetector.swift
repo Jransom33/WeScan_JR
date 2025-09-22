@@ -23,88 +23,58 @@ struct LetterboxParameters {
 @available(iOS 11.0, *)
 enum CoreMLRectangleDetector {
     
-    private static var coreMLModel: MLModel?
     private static var visionModel: VNCoreMLModel?
     
-    /// Load the CoreML model for corner detection
-    private static func loadModel() -> VNCoreMLModel? {
-        if let existingModel = visionModel {
-            return existingModel
+    /// Configure the CoreML model for corner detection
+    /// - Parameter model: The CoreML model to use for corner detection
+    static func configure(with model: MLModel) throws {
+        let visionMLModel = try VNCoreMLModel(for: model)
+        self.visionModel = visionMLModel
+        print("📸📸📸 CoreMLDetector: Successfully configured with provided CoreML model")
+    }
+    
+    /// Convenience method to configure with a model from bundle
+    /// - Parameters:
+    ///   - modelName: Name of the model file (without extension)
+    ///   - bundle: Bundle containing the model (defaults to main bundle)
+    static func configure(modelName: String, in bundle: Bundle = Bundle.main) throws {
+        guard let modelURL = bundle.url(forResource: modelName, withExtension: "mlpackage") else {
+            throw NSError(domain: "CoreMLRectangleDetector", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "CoreML model '\(modelName).mlpackage' not found in bundle"
+            ])
         }
         
-        // Try to find the model in different locations
-        var modelURL: URL?
-        
-        // Strategy 1: Look in the consuming app's main bundle FIRST
-        // This allows users to include their own trained model in their app
-        print("📸📸📸 CoreMLDetector: Searching for model in main app bundle...")
-        modelURL = Bundle.main.url(forResource: "CornerKeypoints_model_epoch_30_simple", withExtension: "mlpackage")
-        if modelURL != nil {
-            print("📸📸📸 CoreMLDetector: Found model in main app bundle")
-        }
-        
-        // Strategy 2: Try alternative model names that users might prefer
-        if modelURL == nil {
-            let alternativeNames = [
-                "CornerKeypoints",
-                "DocumentCornerDetector", 
-                "PageCornerModel",
-                "BookCornerDetector"
-            ]
-            
-            for name in alternativeNames {
-                modelURL = Bundle.main.url(forResource: name, withExtension: "mlpackage")
-                if modelURL != nil {
-                    print("📸📸📸 CoreMLDetector: Found model with alternative name: \(name)")
-                    break
-                }
-            }
-        }
-        
-        // Strategy 3: Fall back to framework bundle (for default/demo purposes)
-        if modelURL == nil {
-            print("📸📸📸 CoreMLDetector: Model not found in main bundle, checking framework bundle...")
-            let frameworkBundle = Bundle(for: ScannerViewController.self)
-            modelURL = frameworkBundle.url(forResource: "CornerKeypoints_model_epoch_30_simple", withExtension: "mlpackage")
-            if modelURL != nil {
-                print("📸📸📸 CoreMLDetector: Found model in framework bundle")
-            }
-        }
-        
-        // Strategy 4: Development fallback - check current directory
-        if modelURL == nil {
-            print("📸📸📸 CoreMLDetector: Checking development directory...")
-            let currentDir = FileManager.default.currentDirectoryPath
-            let devPath = "\(currentDir)/CornerKeypoints_model_epoch_30_simple.mlpackage"
-            if FileManager.default.fileExists(atPath: devPath) {
-                modelURL = URL(fileURLWithPath: devPath)
-                print("📸📸📸 CoreMLDetector: Found model in development directory")
-            }
-        }
-        
-        guard let finalModelURL = modelURL else {
-            print("📸📸📸 CoreMLDetector: ❌ Could not find CoreML model in any location!")
-            print("📸📸📸 CoreMLDetector: 💡 To use custom corner detection:")
-            print("📸📸📸 CoreMLDetector:    1. Add your trained model to your app's bundle")
-            print("📸📸📸 CoreMLDetector:    2. Name it 'CornerKeypoints_model_epoch_30_simple.mlpackage'")
-            print("📸📸📸 CoreMLDetector:    3. Or use alternative names: CornerKeypoints, DocumentCornerDetector, etc.")
-            print("📸📸📸 CoreMLDetector: 🔄 Falling back to traditional rectangle detection...")
+        let model = try MLModel(contentsOf: modelURL)
+        try configure(with: model)
+    }
+    
+    /// Check if a CoreML model has been configured
+    static var isConfigured: Bool {
+        return visionModel != nil
+    }
+    
+    /// Get the configured model (if any)
+    private static func getConfiguredModel() -> VNCoreMLModel? {
+        guard let model = visionModel else {
+            print("📸📸📸 CoreMLDetector: ❌ CRITICAL ERROR: No CoreML model configured!")
+            print("📸📸📸 CoreMLDetector: ")
+            print("📸📸📸 CoreMLDetector: 🚨 You must configure a CoreML model before using WeScan")
+            print("📸📸📸 CoreMLDetector: ")
+            print("📸📸📸 CoreMLDetector: 💡 Solution:")
+            print("📸📸📸 CoreMLDetector:    1. Load your trained CoreML model:")
+            print("📸📸📸 CoreMLDetector:       guard let modelURL = Bundle.main.url(forResource: \"YourModel\", withExtension: \"mlpackage\") else { return }")
+            print("📸📸📸 CoreMLDetector:       let model = try MLModel(contentsOf: modelURL)")
+            print("📸📸📸 CoreMLDetector: ")
+            print("📸📸📸 CoreMLDetector:    2. Configure WeScan before using:")
+            print("📸📸📸 CoreMLDetector:       try CoreMLRectangleDetector.configure(with: model)")
+            print("📸📸📸 CoreMLDetector: ")
+            print("📸📸📸 CoreMLDetector:    3. Then instantiate your scanner:")
+            print("📸📸📸 CoreMLDetector:       let scanner = ImageScannerController()")
+            print("📸📸📸 CoreMLDetector: ")
+            print("📸📸📸 CoreMLDetector: ⚠️  Document detection will not work without model configuration!")
             return nil
         }
-        
-        do {
-            let mlModel = try MLModel(contentsOf: finalModelURL)
-            let visionMLModel = try VNCoreMLModel(for: mlModel)
-            
-            self.coreMLModel = mlModel
-            self.visionModel = visionMLModel
-            
-            print("📸📸📸 CoreMLDetector: Successfully loaded CoreML model")
-            return visionMLModel
-        } catch {
-            print("📸📸📸 CoreMLDetector: Failed to load model: \(error)")
-            return nil
-        }
+        return model
     }
     
     /// Calculate letterbox parameters for 320x320 input while preserving aspect ratio
@@ -193,8 +163,7 @@ enum CoreMLRectangleDetector {
         height: CGFloat,
         completion: @escaping ((Quadrilateral?) -> Void)
     ) {
-        guard let visionModel = loadModel() else {
-            print("📸📸📸 CoreMLDetector: Failed to load model")
+        guard let visionModel = getConfiguredModel() else {
             completion(nil)
             return
         }

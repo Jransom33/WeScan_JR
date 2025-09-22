@@ -10,6 +10,7 @@ import AVFoundation
 import UIKit
 import CoreImage
 import Vision
+import CoreML
 
 /// A set of methods that your delegate object must implement to interact with the image scanner interface.
 public protocol ImageScannerControllerDelegate: NSObjectProtocol {
@@ -69,7 +70,34 @@ public protocol MultiPageImageScannerControllerDelegate: NSObjectProtocol {
 /// 2. Edit the detected rectangle.
 /// 3. Review the cropped down version of the rectangle.
 public final class ImageScannerController: UINavigationController {
+    
+    // MARK: - CoreML Configuration
+    
+    /// Configure WeScan with a CoreML model for corner detection
+    /// This must be called before using the scanner
+    /// - Parameter model: The CoreML model to use for corner detection
+    @available(iOS 11.0, *)
+    public static func configure(with model: MLModel) throws {
+        try CoreMLRectangleDetector.configure(with: model)
+    }
+    
+    /// Configure WeScan with a CoreML model from bundle
+    /// - Parameters:
+    ///   - modelName: Name of the model file (without extension)
+    ///   - bundle: Bundle containing the model (defaults to main bundle)
+    @available(iOS 11.0, *)
+    public static func configure(modelName: String, in bundle: Bundle = Bundle.main) throws {
+        try CoreMLRectangleDetector.configure(modelName: modelName, in: bundle)
+    }
+    
+    /// Check if WeScan has been configured with a CoreML model
+    @available(iOS 11.0, *)
+    public static var isConfigured: Bool {
+        return CoreMLRectangleDetector.isConfigured
+    }
 
+    // MARK: - Delegates
+    
     /// The object that acts as the delegate of the `ImageScannerController`.
     public weak var imageScannerDelegate: ImageScannerControllerDelegate?
     
