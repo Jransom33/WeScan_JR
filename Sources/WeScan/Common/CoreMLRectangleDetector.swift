@@ -85,7 +85,16 @@ enum CoreMLRectangleDetector {
         let padX = (targetSize - scaledWidth) / 2.0
         let padY = (targetSize - scaledHeight) / 2.0
         
-        return LetterboxParameters(scale: scale, padX: padX, padY: padY)
+        let params = LetterboxParameters(scale: scale, padX: padX, padY: padY)
+        
+        print("📸📸📸 CoreMLDetector: Letterbox parameters:")
+        print("📸📸📸 CoreMLDetector:   Original size: \(originalSize)")
+        print("📸📸📸 CoreMLDetector:   Target size: \(targetSize)")
+        print("📸📸📸 CoreMLDetector:   Scale: \(scale)")
+        print("📸📸📸 CoreMLDetector:   Scaled size: (\(scaledWidth), \(scaledHeight))")
+        print("📸📸📸 CoreMLDetector:   Padding: (\(padX), \(padY))")
+        
+        return params
     }
     
     /// Decode heatmaps to find corner points in 320x320 space
@@ -148,6 +157,9 @@ enum CoreMLRectangleDetector {
             var maxY = 0
             var maxX = 0
             
+            // Track top 5 values for debugging
+            var topValues: [(value: Float, x: Int, y: Int)] = []
+            
             for y in 0..<height {
                 for x in 0..<width {
                     let idx = index(channel, y, x)
@@ -157,10 +169,35 @@ enum CoreMLRectangleDetector {
                         maxY = y
                         maxX = x
                     }
+                    
+                    // Keep track of top values for debugging
+                    topValues.append((value: value, x: x, y: y))
+                    topValues.sort { $0.value > $1.value }
+                    if topValues.count > 5 {
+                        topValues.removeLast()
+                    }
                 }
             }
             
             print("📸📸📸 CoreMLDetector: Channel \(channel) peak at (\(maxX), \(maxY)) = \(maxValue)")
+            
+            // Log top 5 values for debugging
+            print("📸📸📸 CoreMLDetector: Channel \(channel) top 5 values:")
+            for (i, top) in topValues.enumerated() {
+                print("📸📸📸 CoreMLDetector:   #\(i+1): (\(top.x), \(top.y)) = \(top.value)")
+            }
+            
+            // Calculate statistics for this channel
+            let channelValues = (0..<height).flatMap { y in
+                (0..<width).map { x in values[index(channel, y, x)] }
+            }
+            let minVal = channelValues.min() ?? 0
+            let maxVal = channelValues.max() ?? 0
+            let meanVal = channelValues.reduce(0, +) / Float(channelValues.count)
+            let variance = channelValues.map { pow($0 - meanVal, 2) }.reduce(0, +) / Float(channelValues.count)
+            let stdDev = sqrt(variance)
+            
+            print("📸📸📸 CoreMLDetector: Channel \(channel) stats - min: \(minVal), max: \(maxVal), mean: \(meanVal), std: \(stdDev)")
             
             // Map to 320x320 space using stride
             let point = CGPoint(x: CGFloat(maxX * stride), y: CGFloat(maxY * stride))
@@ -172,12 +209,21 @@ enum CoreMLRectangleDetector {
     
     /// Map points from 320x320 space back to original image coordinates
     private static func unletterbox(points320: [CGPoint], letterbox: LetterboxParameters) -> [CGPoint] {
-        return points320.map { point in
-            CGPoint(
-                x: (point.x - letterbox.padX) / letterbox.scale,
-                y: (point.y - letterbox.padY) / letterbox.scale
-            )
+        print("📸📸📸 CoreMLDetector: Unletterboxing points:")
+        print("📸📸📸 CoreMLDetector:   Input points (320x320 space): \(points320)")
+        
+        let originalPoints = points320.map { point in
+            let originalX = (point.x - letterbox.padX) / letterbox.scale
+            let originalY = (point.y - letterbox.padY) / letterbox.scale
+            
+            print("📸📸📸 CoreMLDetector:   (\(point.x), \(point.y)) -> (\(originalX), \(originalY))")
+            
+            return CGPoint(x: originalX, y: originalY)
         }
+        
+        print("📸📸📸 CoreMLDetector:   Output points (original space): \(originalPoints)")
+        
+        return originalPoints
     }
     
     /// Convert corner points to a Quadrilateral
