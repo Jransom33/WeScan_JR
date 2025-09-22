@@ -298,11 +298,11 @@ public final class ImageScannerController: UINavigationController {
         addThumbnailForResult(result, at: scanResults.count - 1)
         updateUIForMultipleScans()
         
-        print("📸📸📸 MultiScan: Added scan \(scanResults.count), returning to camera")
+        print("📸📸📸 MultiScan: Added scan \(scanResults.count), showing thumbnail summary")
         
-        // Return to scanner view for next capture
+        // Show thumbnail summary instead of automatically returning to camera
         DispatchQueue.main.async { [weak self] in
-            self?.resetScanner()
+            self?.showThumbnailSummary()
         }
     }
     

@@ -52,7 +52,7 @@ public final class ThumbnailSummaryViewController: UIViewController {
     
     private lazy var saveDoneButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Save & Done", for: .normal)
+        button.setTitle("✓ Finish & Save All Pages", for: .normal)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         button.backgroundColor = .systemBlue
         button.setTitleColor(.white, for: .normal)
@@ -64,7 +64,7 @@ public final class ThumbnailSummaryViewController: UIViewController {
     
     private lazy var continueButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Continue Scanning", for: .normal)
+        button.setTitle("+ Scan More Pages", for: .normal)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
         button.backgroundColor = .systemGreen
         button.setTitleColor(.white, for: .normal)
@@ -137,7 +137,7 @@ public final class ThumbnailSummaryViewController: UIViewController {
     }
     
     private func setupNavigationBar() {
-        title = "Scanned Documents"
+        title = "Your Scanned Pages"
         
         let cancelButton = UIBarButtonItem(
             title: "Cancel",

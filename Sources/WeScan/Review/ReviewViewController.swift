@@ -184,10 +184,13 @@ final class ReviewViewController: UIViewController {
         if imageScannerController.isMultiPageScanningEnabled {
             if let index = editingIndex {
                 // Update existing scan result
-                imageScannerController.updateScanResult(newResults, at: index)
-                print("📸📸📸 MultiScan: Updated existing scan at index \\(index)")
+                imageScannerController.updateScanResultFromThumbnailSummary(newResults, at: index)
+                print("📸📸📸 MultiScan: Updated existing scan at index \\(index), returning to thumbnail summary")
+                
+                // Go back to thumbnail summary
+                navigationController?.popViewController(animated: true)
             } else {
-                // Add new scan result
+                // Add new scan result (this will show thumbnail summary)
                 imageScannerController.addScanResult(newResults)
                 print("📸📸📸 MultiScan: Added new scan, total: \\(imageScannerController.scanResults.count)")
             }
