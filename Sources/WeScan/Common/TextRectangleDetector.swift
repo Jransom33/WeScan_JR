@@ -166,7 +166,7 @@ enum TextRectangleDetector {
 @available(iOS 11.0, *)
 enum HybridRectangleDetector {
     
-    /// Detects rectangles using both Vision and text-based methods
+    /// Detects rectangles using both CoreML and text-based methods
     static func detectBestRectangle(
         forPixelBuffer pixelBuffer: CVPixelBuffer,
         completion: @escaping ((Quadrilateral?) -> Void)
@@ -175,9 +175,9 @@ enum HybridRectangleDetector {
         var visionResult: Quadrilateral?
         var textResult: Quadrilateral?
         
-        // Run Vision detection
+        // Run CoreML detection
         group.enter()
-        VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { result in
+        CoreMLRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { result in
             visionResult = result
             group.leave()
         }
@@ -196,7 +196,7 @@ enum HybridRectangleDetector {
         }
     }
     
-    /// Chooses the best result between Vision and text-based detection
+    /// Chooses the best result between CoreML and text-based detection
     private static func chooseBestResult(
         vision: Quadrilateral?,
         text: Quadrilateral?

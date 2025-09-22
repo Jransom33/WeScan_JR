@@ -57,3 +57,98 @@ screenshots/.DS_Store
 !*/screenshots/
 Preview.html
 .DS_Store
+
+# PROPRIETARY: CoreML Models and Training Code
+# ===========================================
+# Keep your trained models and training pipeline private
+*.mlpackage/
+*.mlmodel
+*CornerKeypoints*.mlpackage/
+*CornerKeypoints*.mlmodel
+FourCornerSource/
+**/CornerKeypoints*
+**/DocumentCornerDetector*
+**/PageCornerModel*
+**/BookCornerDetector*
+
+# CoreML Documentation (keep private)
+COREML_*.md
+*COREML*.md
+ML_INTEGRATION*.md
+
+# Training and ML Development
+# ===========================
+# Common ML development artifacts you might want to exclude
+*.pth
+*.pt
+*.onnx
+*.h5
+*.pb
+*.tflite
+*.weights
+*.bin
+checkpoints/
+models/
+weights/
+trained_models/
+model_outputs/
+training_logs/
+tensorboard_logs/
+wandb/
+.neptune/
+
+# Python Virtual Environments & ML Dependencies
+# =============================================
+# If you're doing ML development in Python
+venv/
+env/
+.env
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebooks
+# =================
+.ipynb_checkpoints/
+*.ipynb
+
+# Data Files
+# ==========
+# Large datasets and training data
+*.csv
+*.json
+*.xml
+data/
+datasets/
+training_data/
+test_data/
+annotations/
+labels/
+
+# IDE and Development
+# ==================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary Files
+# ==============
+*.tmp
+*.temp
+*.log

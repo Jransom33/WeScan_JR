@@ -8,6 +8,8 @@
 
 import AVFoundation
 import UIKit
+import CoreImage
+import Vision
 
 /// A set of methods that your delegate object must implement to interact with the image scanner interface.
 public protocol ImageScannerControllerDelegate: NSObjectProtocol {
@@ -153,10 +155,18 @@ public final class ImageScannerController: UINavigationController {
         let orientedImage = ciImage.oriented(forExifOrientation: Int32(orientation.rawValue))
 
         if #available(iOS 11.0, *) {
-            // Use the VisionRectangleDetector on iOS 11 to attempt to find a rectangle from the initial image.
-            VisionRectangleDetector.rectangle(forImage: ciImage, orientation: orientation) { quad in
-                let detectedQuad = quad?.toCartesian(withHeight: orientedImage.extent.height)
-                completion(detectedQuad)
+            // Try CoreML-based corner detection first, fall back to Vision if model not available
+            CoreMLRectangleDetector.rectangle(forImage: ciImage, orientation: orientation) { quad in
+                if quad == nil {
+                    // Fall back to traditional Vision detection if CoreML model not available
+                    VisionRectangleDetector.rectangle(forImage: ciImage, orientation: orientation) { fallbackQuad in
+                        let detectedQuad = fallbackQuad?.toCartesian(withHeight: orientedImage.extent.height)
+                        completion(detectedQuad)
+                    }
+                } else {
+                    let detectedQuad = quad?.toCartesian(withHeight: orientedImage.extent.height)
+                    completion(detectedQuad)
+                }
             }
         } else {
             // Use the CIRectangleDetector on iOS 10 to attempt to find a rectangle from the initial image.

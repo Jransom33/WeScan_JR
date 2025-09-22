@@ -11,6 +11,7 @@ import CoreMotion
 import Foundation
 import UIKit
 import Vision
+import CoreImage
 
 /// A set of functions that inform the delegate object of the state of the detection.
 protocol RectangleDetectionDelegateProtocol: NSObjectProtocol {
@@ -211,14 +212,16 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
         let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
 
         if #available(iOS 11.0, *) {
-            if useTextBasedDetection {
-                // Use hybrid detection (Vision + Text)
-                HybridRectangleDetector.detectBestRectangle(forPixelBuffer: pixelBuffer) { rectangle in
-                    self.processRectangle(rectangle: rectangle, imageSize: imageSize)
-                }
-            } else {
-                // Use traditional Vision detection only
-                VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { rectangle in
+            // Try CoreML-based corner detection first, fall back to Vision if model not available
+            CoreMLRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { [weak self] rectangle in
+                guard let self = self else { return }
+                
+                // If CoreML detection failed, fall back to traditional Vision detection
+                if rectangle == nil {
+                    VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { fallbackRectangle in
+                        self.processRectangle(rectangle: fallbackRectangle, imageSize: imageSize)
+                    }
+                } else {
                     self.processRectangle(rectangle: rectangle, imageSize: imageSize)
                 }
             }
