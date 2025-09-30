@@ -25,17 +25,17 @@ final class MotionStabilityMonitor {
     /// Exponential smoothing factor (0..1)
     private let smoothingAlpha: Double = 0.2
 
-    /// Thresholds to determine stability (made less sensitive for better autocapture)
-    private let accelStableThreshold: Double = 0.03   // in g (~m/s^2 normalized)
-    private let gyroStableThreshold: Double = 0.05    // rad/s
+    /// Thresholds to determine stability (very lenient for real-world handheld use)
+    private let accelStableThreshold: Double = 0.08   // in g (~m/s^2 normalized) - relaxed
+    private let gyroStableThreshold: Double = 0.10    // rad/s - relaxed
 
-    /// Hysteresis margins (wider to prevent flickering)
-    private let accelUnstableThreshold: Double = 0.08
-    private let gyroUnstableThreshold: Double = 0.12
+    /// Hysteresis margins (much wider to prevent losing stability easily)
+    private let accelUnstableThreshold: Double = 0.20  // Need significant movement to lose stability
+    private let gyroUnstableThreshold: Double = 0.25
 
     /// Require consecutive stable samples before reporting stable
-    private let requiredStableSamples: Int = 8  // ~133ms at 60Hz
-    private let requiredUnstableSamples: Int = 5  // Need more unstable samples to lose stability
+    private let requiredStableSamples: Int = 5   // ~83ms at 60Hz - faster to establish
+    private let requiredUnstableSamples: Int = 10 // Much harder to lose stability once achieved
 
     private var stableSampleCount: Int = 0
     private var unstableSampleCount: Int = 0
@@ -74,12 +74,14 @@ final class MotionStabilityMonitor {
                 self.stableSampleCount += 1
                 self.unstableSampleCount = 0
                 if !self.isStable && self.stableSampleCount >= self.requiredStableSamples {
+                    print("📱 Motion: STABLE (accel: \(String(format: "%.3f", self.filteredAccel)), gyro: \(String(format: "%.3f", self.filteredGyro)))")
                     self.isStable = true
                 }
             } else if accelIsUnstable || gyroIsUnstable {
                 self.unstableSampleCount += 1
                 self.stableSampleCount = 0
                 if self.isStable && self.unstableSampleCount >= self.requiredUnstableSamples {
+                    print("📱 Motion: UNSTABLE (accel: \(String(format: "%.3f", self.filteredAccel)), gyro: \(String(format: "%.3f", self.filteredGyro)))")
                     self.isStable = false
                 }
             } else {

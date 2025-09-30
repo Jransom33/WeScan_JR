@@ -77,8 +77,8 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     /// Simplified autocapture: count consecutive stable frames with detected rectangle
     private var stableFramesWithRectangle = 0
     
-    /// Number of consecutive stable frames required before autocapture (at ~30fps, 15 frames = ~500ms)
-    private let requiredStableFrames = 15
+    /// Number of consecutive stable frames required before autocapture (at ~30fps, 10 frames = ~333ms)
+    private let requiredStableFrames = 10
 
     // MARK: Life Cycle
 

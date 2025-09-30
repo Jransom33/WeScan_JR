@@ -431,10 +431,15 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             return
         }
 
-        let portraitImageSize = CGSize(width: imageSize.height, height: imageSize.width)
+        print("📸📸📸 Scanner: didDetectQuad - imageSize: \(imageSize), quad bounds: \(quadView.bounds.size)")
+        print("📸📸📸 Scanner: Quad in image coords - TL(\(quad.topLeft.x), \(quad.topLeft.y)) BR(\(quad.bottomRight.x), \(quad.bottomRight.y))")
 
-        let scaleTransform = CGAffineTransform.scaleTransform(forSize: portraitImageSize, aspectFillInSize: quadView.bounds.size)
+        // ImageSize from DeepLabV3 is already in the correct orientation (portrait)
+        // So we DON'T need to swap width/height like we did for camera buffer coordinates
+        let scaleTransform = CGAffineTransform.scaleTransform(forSize: imageSize, aspectFillInSize: quadView.bounds.size)
         let scaledImageSize = imageSize.applying(scaleTransform)
+
+        print("📸📸📸 Scanner: Scale: \(scaleTransform.a), scaled image: \(scaledImageSize)")
 
         let rotationTransform = CGAffineTransform(rotationAngle: CGFloat.pi / 2.0)
 
@@ -445,6 +450,8 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
         let transforms = [scaleTransform, rotationTransform, translationTransform]
 
         let transformedQuad = quad.applyTransforms(transforms)
+
+        print("📸📸📸 Scanner: Transformed quad - TL(\(transformedQuad.topLeft.x), \(transformedQuad.topLeft.y)) BR(\(transformedQuad.bottomRight.x), \(transformedQuad.bottomRight.y))")
 
         quadView.drawQuadrilateral(quad: transformedQuad, animated: true)
     }
