@@ -362,6 +362,52 @@ enum CoreMLSegmentationDetector {
         
         return pagePixelCount > 0 ? totalConf / Float(pagePixelCount) : 0.0
     }
+
+    /// Render a binary mask (page=1.0) to a UIImage at the original image size using the same letterbox transform inversion
+    public static func renderMaskImage(originalSize: CGSize, mask: [[Float]], threshold: Float = 0.5, color: UIColor = .systemBlue, alpha: CGFloat = 0.45) -> UIImage? {
+        let width = Int(originalSize.width)
+        let height = Int(originalSize.height)
+        guard width > 0, height > 0, let firstRow = mask.first, firstRow.count > 0 else { return nil }
+
+        // RGBA buffer
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+
+        // Precompute color components (premultiplied alpha)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let outA = UInt8((alpha * 255).rounded())
+        let outR = UInt8((r * 255).rounded())
+        let outG = UInt8((g * 255).rounded())
+        let outB = UInt8((b * 255).rounded())
+
+        // Inverse letterbox for mapping 320x320 mask -> original
+        let lb = letterboxParameters(originalSize: originalSize)
+        let h = mask.count
+        let w = mask[0].count
+        for y in 0..<h {
+            for x in 0..<w {
+                if mask[y][x] >= threshold {
+                    let ox = Int(((CGFloat(x) - lb.padX) / lb.scale).rounded())
+                    let oy = Int(((CGFloat(y) - lb.padY) / lb.scale).rounded())
+                    if ox >= 0 && ox < width && oy >= 0 && oy < height {
+                        let idx = (oy * width + ox) * 4
+                        pixels[idx + 0] = outR
+                        pixels[idx + 1] = outG
+                        pixels[idx + 2] = outB
+                        pixels[idx + 3] = outA
+                    }
+                }
+            }
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        return pixels.withUnsafeMutableBytes { ptr in
+            guard let base = ptr.baseAddress else { return nil }
+            guard let ctx = CGContext(data: base, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+            guard let cgImage = ctx.makeImage() else { return nil }
+            return UIImage(cgImage: cgImage)
+        }
+    }
     
     /// Unletterbox points from 320x320 space back to original image coordinates
     private static func unletterboxPoints(_ points320: [CGPoint], letterbox: LetterboxParameters) -> [CGPoint] {
@@ -510,6 +556,29 @@ enum CoreMLSegmentationDetector {
         let imageRequestHandler = VNImageRequestHandler(ciImage: image, orientation: orientation, options: [:])
         let orientedImage = image.oriented(orientation)
         detectPageSegmentation(for: imageRequestHandler, originalSize: orientedImage.extent.size, completion: completion)
+    }
+
+    // MARK: - Still Image Convenience
+
+    /// Segments a UIImage and optionally returns a rendered mask image at original resolution
+    /// - Parameters:
+    ///   - image: Source image
+    ///   - threshold: Probability threshold for page class
+    ///   - completion: Called with segmentation result and optional mask UIImage
+    public static func segmentUIImage(_ image: UIImage, threshold: Float = 0.5, completion: @escaping (PageSegmentationResult?, UIImage?) -> Void) {
+        guard let ciImage = CIImage(image: image) else {
+            completion(nil, nil)
+            return
+        }
+        segmentPage(forImage: ciImage) { result in
+            guard let result else {
+                completion(nil, nil)
+                return
+            }
+            // Render mask image showing individual page pixels
+            let maskImage = renderMaskImage(originalSize: image.size, mask: result.mask, threshold: threshold, color: .systemBlue, alpha: 0.45)
+            completion(result, maskImage)
+        }
     }
     
     // MARK: - Quadrilateral Conversion
