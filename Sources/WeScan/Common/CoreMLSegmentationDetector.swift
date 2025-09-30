@@ -67,18 +67,28 @@ public enum CoreMLSegmentationDetector {
     private static var visionModel: VNCoreMLModel?
     private static var config: CoreMLSegmentationConfig = .default
     
+    /// Get timestamp for logging
+    private static func timestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: Date())
+    }
+    
     /// Configure the CoreML segmentation model
     /// - Parameters:
     ///   - model: The CoreML DeepLabV3 model to use for page segmentation
     ///   - config: Segmentation configuration including thresholds
     public static func configure(with model: MLModel, config: CoreMLSegmentationConfig = .default) throws {
+        let startTime = CACurrentMediaTime()
         let visionMLModel = try VNCoreMLModel(for: model)
+        let loadTime = (CACurrentMediaTime() - startTime) * 1000
+        
         self.visionModel = visionMLModel
         self.config = config
-        print("🎭🎭🎭 SegmentationDetector: Successfully configured with provided CoreML model")
-        print("🎭🎭🎭 SegmentationDetector: Threshold: \(config.threshold)")
-        print("🎭🎭🎭 SegmentationDetector: Min contour area: \(config.minContourArea)")
-        print("🎭🎭🎭 SegmentationDetector: Apply morphology: \(config.applyMorphology)")
+        print("[\(timestamp())] 🎭 SegmentationDetector: ✅ Model loaded in \(String(format: "%.1f", loadTime))ms")
+        print("[\(timestamp())] 🎭 SegmentationDetector: Threshold: \(config.threshold)")
+        print("[\(timestamp())] 🎭 SegmentationDetector: Min contour area: \(config.minContourArea)")
+        print("[\(timestamp())] 🎭 SegmentationDetector: Apply morphology: \(config.applyMorphology)")
     }
     
     /// Letterbox parameters for image preprocessing (matching .scaleFit)
@@ -481,10 +491,15 @@ public enum CoreMLSegmentationDetector {
             return
         }
         
+        let inferenceStart = CACurrentMediaTime()
+        
         // Create CoreML request
         let coreMLRequest = VNCoreMLRequest(model: visionModel) { request, error in
+            let inferenceTime = (CACurrentMediaTime() - inferenceStart) * 1000
+            print("[\(timestamp())] 🎭 DeepLabV3 inference: \(String(format: "%.1f", inferenceTime))ms")
+            
             if let error = error {
-                print("🎭🎭🎭 SegmentationDetector: CoreML request failed: \(error)")
+                print("[\(timestamp())] 🎭 SegmentationDetector: CoreML request failed: \(error)")
                 completion(nil)
                 return
             }

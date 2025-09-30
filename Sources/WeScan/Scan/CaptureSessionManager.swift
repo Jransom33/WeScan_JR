@@ -79,6 +79,13 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     
     /// Number of consecutive stable frames required before autocapture (at ~30fps, 10 frames = ~333ms)
     private let requiredStableFrames = 10
+    
+    /// Get timestamp for logging
+    private func timestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: Date())
+    }
 
     // MARK: Life Cycle
 
@@ -273,10 +280,10 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
             
             if isStable && canAutoScan {
                 stableFramesWithRectangle += 1
-                print("📸📸📸 CaptureSession: Stable frame \(stableFramesWithRectangle)/\(requiredStableFrames) with rectangle")
+                print("[\(timestamp())] 📸 CaptureSession: Stable frame \(stableFramesWithRectangle)/\(requiredStableFrames) with rectangle")
                 
                 if stableFramesWithRectangle >= requiredStableFrames {
-                    print("📸📸📸 CaptureSession: 🎉 AUTOCAPTURE! Device stable for \(stableFramesWithRectangle) frames")
+                    print("[\(timestamp())] 📸 CaptureSession: 🎉 AUTOCAPTURE! Device stable for \(stableFramesWithRectangle) frames")
                     stableFramesWithRectangle = 0  // Reset counter
                     
                     // Show segmentation mask overlay just before capture
@@ -289,7 +296,7 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
             } else {
                 // Device moved or conditions not met - reset counter
                 if stableFramesWithRectangle > 0 {
-                    print("📸📸📸 CaptureSession: Stability lost or conditions not met, resetting counter (was: \(stableFramesWithRectangle))")
+                    print("[\(timestamp())] 📸 CaptureSession: Stability lost, resetting counter (was: \(stableFramesWithRectangle))")
                     stableFramesWithRectangle = 0
                 }
             }
