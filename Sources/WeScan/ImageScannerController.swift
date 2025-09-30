@@ -546,11 +546,18 @@ public struct ImageScannerResults {
     /// The detected rectangle which was used to generate the `scannedImage`.
     public var detectedRectangle: Quadrilateral?
 
+    /// Backward-compatibility alias for consumers expecting `detectedQuad`
+    public var detectedQuad: Quadrilateral? { detectedRectangle }
+
+    /// Optional overlay image (e.g., rendered segmentation mask) for clients to display
+    public var overlayImage: UIImage?
+
     init(
         detectedRectangle: Quadrilateral?,
         originalScan: ImageScannerScan,
         croppedScan: ImageScannerScan,
         enhancedScan: ImageScannerScan?,
+        overlayImage: UIImage? = nil,
         doesUserPreferEnhancedScan: Bool = false
     ) {
         self.detectedRectangle = detectedRectangle
@@ -558,6 +565,7 @@ public struct ImageScannerResults {
         self.originalScan = originalScan
         self.croppedScan = croppedScan
         self.enhancedScan = enhancedScan
+        self.overlayImage = overlayImage
 
         self.doesUserPreferEnhancedScan = doesUserPreferEnhancedScan
     }

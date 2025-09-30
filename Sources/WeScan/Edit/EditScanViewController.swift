@@ -212,7 +212,8 @@ final class EditScanViewController: UIViewController {
             detectedRectangle: scaledQuad,
             originalScan: ImageScannerScan(image: image),
             croppedScan: ImageScannerScan(image: croppedImage),
-            enhancedScan: enhancedScan
+            enhancedScan: enhancedScan,
+            overlayImage: overlayImage
         )
 
         // Check if we're editing from thumbnail summary (new flow) or traditional flow
