@@ -175,11 +175,18 @@ enum HybridRectangleDetector {
         var visionResult: Quadrilateral?
         var textResult: Quadrilateral?
         
-        // Run CoreML detection
+        // Run CoreML segmentation detection
         group.enter()
-        CoreMLRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { result in
-            visionResult = result
-            group.leave()
+        if #available(iOS 15.0, *) {
+            CoreMLSegmentationDetector.rectangle(forPixelBuffer: pixelBuffer) { result in
+                visionResult = result
+                group.leave()
+            }
+        } else {
+            VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { result in
+                visionResult = result
+                group.leave()
+            }
         }
         
         // Run text-based detection

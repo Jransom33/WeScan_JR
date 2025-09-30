@@ -211,12 +211,12 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
 
         let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
 
-        if #available(iOS 11.0, *) {
-            // Try CoreML-based corner detection first, fall back to Vision if model not available
-            CoreMLRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { [weak self] rectangle in
+        if #available(iOS 15.0, *) {
+            // Try CoreML-based segmentation detection first, fall back to Vision if model not available
+            CoreMLSegmentationDetector.rectangle(forPixelBuffer: pixelBuffer) { [weak self] rectangle in
                 guard let self = self else { return }
                 
-                // If CoreML detection failed, fall back to traditional Vision detection
+                // If segmentation detection failed, fall back to traditional Vision detection
                 if rectangle == nil {
                     VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { fallbackRectangle in
                         self.processRectangle(rectangle: fallbackRectangle, imageSize: imageSize)
@@ -224,6 +224,12 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                 } else {
                     self.processRectangle(rectangle: rectangle, imageSize: imageSize)
                 }
+            }
+        } else if #available(iOS 11.0, *) {
+            // Fall back to Vision for older iOS versions
+            VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { [weak self] rectangle in
+                guard let self = self else { return }
+                self.processRectangle(rectangle: rectangle, imageSize: imageSize)
             }
         } else {
             let finalImage = CIImage(cvPixelBuffer: pixelBuffer)

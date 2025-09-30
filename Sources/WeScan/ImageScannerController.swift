@@ -73,53 +73,53 @@ public final class ImageScannerController: UINavigationController {
     
     // MARK: - CoreML Configuration
     
-    /// Configure WeScan with a CoreML model for corner detection
+    /// Configure WeScan with a CoreML DeepLabV3 model for page segmentation
     /// This must be called before using the scanner
     /// - Parameters:
-    ///   - model: The CoreML model to use for corner detection
-    ///   - config: Detection configuration including confidence thresholds
-    @available(iOS 11.0, *)
-    public static func configure(with model: MLModel, config: CoreMLDetectionConfig = .default) throws {
-        try CoreMLRectangleDetector.configure(with: model, config: config)
+    ///   - model: The CoreML DeepLabV3 model to use for page segmentation
+    ///   - config: Segmentation configuration including thresholds
+    @available(iOS 15.0, *)
+    public static func configure(with model: MLModel, config: CoreMLSegmentationConfig = .default) throws {
+        try CoreMLSegmentationDetector.configure(with: model, config: config)
     }
-    
-    /// Configure WeScan with a CoreML model from bundle
+
+    /// Configure WeScan with a CoreML segmentation model from bundle
     /// - Parameters:
     ///   - modelName: Name of the model file (without extension)
     ///   - bundle: Bundle containing the model (defaults to main bundle)
-    ///   - config: Detection configuration including confidence thresholds
-    @available(iOS 11.0, *)
-    public static func configure(modelName: String, in bundle: Bundle = Bundle.main, config: CoreMLDetectionConfig = .default) throws {
-        try CoreMLRectangleDetector.configure(modelName: modelName, in: bundle, config: config)
+    ///   - config: Segmentation configuration including thresholds
+    @available(iOS 15.0, *)
+    public static func configure(modelName: String, in bundle: Bundle = Bundle.main, config: CoreMLSegmentationConfig = .default) throws {
+        try CoreMLSegmentationDetector.configure(modelName: modelName, in: bundle, config: config)
     }
-    
-    /// Check if WeScan has been configured with a CoreML model
-    @available(iOS 11.0, *)
+
+    /// Check if WeScan has been configured with a CoreML segmentation model
+    @available(iOS 15.0, *)
     public static var isConfigured: Bool {
-        return CoreMLRectangleDetector.isConfigured
+        return CoreMLSegmentationDetector.isConfigured
     }
-    
-    /// Configure with debugging-friendly settings for troubleshooting model predictions
-    /// Uses lenient confidence thresholds and enables detailed logging
-    @available(iOS 11.0, *)
+
+    /// Configure with debugging-friendly settings for troubleshooting segmentation predictions
+    /// Uses lenient thresholds and enables detailed logging
+    @available(iOS 15.0, *)
     public static func configureWithDebugSettings(with model: MLModel) throws {
-        let debugConfig = CoreMLDetectionConfig(
-            minConfidence: -3.0,        // Very lenient for debugging
-            minCornerDistance: 10.0,    // Require reasonable separation
-            applySigmoid: true          // Show probabilities for easier interpretation
+        let debugConfig = CoreMLSegmentationConfig(
+            threshold: 0.3,             // Lower threshold for debugging
+            minContourArea: 500.0,      // Lower minimum area
+            applyMorphology: true       // Enable morphological operations
         )
-        try CoreMLRectangleDetector.configure(with: model, config: debugConfig)
+        try CoreMLSegmentationDetector.configure(with: model, config: debugConfig)
     }
-    
+
     /// Configure with debugging-friendly settings using model name
-    @available(iOS 11.0, *)
+    @available(iOS 15.0, *)
     public static func configureWithDebugSettings(modelName: String, in bundle: Bundle = Bundle.main) throws {
-        let debugConfig = CoreMLDetectionConfig(
-            minConfidence: -3.0,        // Very lenient for debugging
-            minCornerDistance: 10.0,    // Require reasonable separation
-            applySigmoid: true          // Show probabilities for easier interpretation
+        let debugConfig = CoreMLSegmentationConfig(
+            threshold: 0.3,             // Lower threshold for debugging
+            minContourArea: 500.0,      // Lower minimum area
+            applyMorphology: true       // Enable morphological operations
         )
-        try CoreMLRectangleDetector.configure(modelName: modelName, in: bundle, config: debugConfig)
+        try CoreMLSegmentationDetector.configure(modelName: modelName, in: bundle, config: debugConfig)
     }
 
     // MARK: - Delegates

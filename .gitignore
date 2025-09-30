@@ -63,6 +63,8 @@ Preview.html
 # Keep your trained models and training pipeline private
 *.mlpackage/
 *.mlmodel
+DeepLabV3PageSegmentation.mlpackage/
+CornerKeypoints_model_epoch_simple.mlpackage/
 *CornerKeypoints*.mlpackage/
 *CornerKeypoints*.mlmodel
 FourCornerSource/

@@ -139,50 +139,50 @@ final class HomeViewController: UIViewController {
     }
 
     func scanImage() {
-       // MARK: - New CoreML Usage Pattern with Confidence Configuration (iOS 11.0+)
+       // MARK: - New CoreML DeepLabV3 Page Segmentation Usage Pattern (iOS 15.0+)
        /*
-       // Option 1: Configure with default confidence settings
+       // Option 1: Configure with default segmentation settings
        do {
-           try ImageScannerController.configure(modelName: "CornerKeypoints_model_epoch_30_simple")
-           // Now the scanner will use your custom CoreML model for corner detection
+           try ImageScannerController.configure(modelName: "DeepLabV3PageSegmentation")
+           // Now the scanner will use your custom DeepLabV3 model for page segmentation
        } catch {
-           print("Failed to configure WeScan with CoreML model: \(error)")
+           print("Failed to configure WeScan with DeepLabV3 model: \(error)")
            // Will use default rectangle detection
        }
 
        // Option 2: Configure with DEBUG settings (recommended for troubleshooting)
        do {
-           try ImageScannerController.configureWithDebugSettings(modelName: "CornerKeypoints_model_epoch_30_simple")
-           // This uses lenient thresholds and detailed logging to help debug model predictions
+           try ImageScannerController.configureWithDebugSettings(modelName: "DeepLabV3PageSegmentation")
+           // This uses lenient thresholds and detailed logging to help debug segmentation predictions
        } catch {
            print("Failed to configure WeScan with debug settings: \(error)")
        }
 
-       // Option 3: Configure with custom confidence settings
+       // Option 3: Configure with custom segmentation settings
        do {
-           let config = CoreMLDetectionConfig(
-               minConfidence: -1.5,      // Stricter confidence threshold (default: -2.0)
-               minCornerDistance: 10.0,  // Minimum distance between corners (default: 5.0)
-               applySigmoid: true        // Convert logits to probabilities (default: false)
+           let config = CoreMLSegmentationConfig(
+               threshold: 0.6,           // Higher threshold for more confident segmentation (default: 0.5)
+               minContourArea: 2000.0,   // Minimum area for valid page detection (default: 1000.0)
+               applyMorphology: true     // Apply morphological operations to clean mask (default: true)
            )
-           try ImageScannerController.configure(modelName: "CornerKeypoints_model_epoch_30_simple", config: config)
+           try ImageScannerController.configure(modelName: "DeepLabV3PageSegmentation", config: config)
        } catch {
-           print("Failed to configure WeScan with CoreML model: \(error)")
+           print("Failed to configure WeScan with DeepLabV3 model: \(error)")
        }
 
        // Option 4: Configure with MLModel directly and custom config
        /*
        do {
-           guard let modelURL = Bundle.main.url(forResource: "YourModel", withExtension: "mlpackage") else {
-               print("CoreML model not found")
+           guard let modelURL = Bundle.main.url(forResource: "DeepLabV3PageSegmentation", withExtension: "mlpackage") else {
+               print("DeepLabV3 CoreML model not found")
                return
            }
            let model = try MLModel(contentsOf: modelURL)
            
-           let config = CoreMLDetectionConfig(
-               minConfidence: -1.0,      // Very strict confidence
-               minCornerDistance: 15.0,  // Ensure corners are well separated
-               applySigmoid: false       // Keep raw logits for debugging
+           let config = CoreMLSegmentationConfig(
+               threshold: 0.7,           // Very strict threshold
+               minContourArea: 3000.0,   // Large minimum area
+               applyMorphology: false    // Disable morphology for raw output
            )
            try ImageScannerController.configure(with: model, config: config)
        } catch {
