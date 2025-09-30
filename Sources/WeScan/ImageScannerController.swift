@@ -351,11 +351,25 @@ public final class ImageScannerController: UINavigationController {
     
     /// Adds a new scan result and updates the thumbnail display.
     internal func addScanResult(_ result: ImageScannerResults) {
-        scanResults.append(result)
-        addThumbnailForResult(result, at: scanResults.count - 1)
-        updateUIForMultipleScans()
+        let startTime = CACurrentMediaTime()
+        let timestamp = DateFormatter()
+        timestamp.dateFormat = "HH:mm:ss.SSS"
+        let ts = timestamp.string(from: Date())
         
-        print("📸📸📸 MultiScan: Added scan \(scanResults.count), showing thumbnail summary")
+        print("[\(ts)] 📸 ImageScanner: addScanResult START")
+        scanResults.append(result)
+        
+        let thumbnailStart = CACurrentMediaTime()
+        addThumbnailForResult(result, at: scanResults.count - 1)
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: Added thumbnail (+\(String(format: "%.0f", (CACurrentMediaTime() - thumbnailStart) * 1000))ms)")
+        
+        let updateStart = CACurrentMediaTime()
+        updateUIForMultipleScans()
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: Updated UI (+\(String(format: "%.0f", (CACurrentMediaTime() - updateStart) * 1000))ms)")
+        
+        let totalTime = (CACurrentMediaTime() - startTime) * 1000
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: addScanResult TOTAL: \(String(format: "%.0f", totalTime))ms")
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: Scan \(scanResults.count) added, showing thumbnail summary")
         
         // Show thumbnail summary instead of automatically returning to camera
         DispatchQueue.main.async { [weak self] in
@@ -474,12 +488,29 @@ public final class ImageScannerController: UINavigationController {
     
     /// Shows the thumbnail summary view controller
     internal func showThumbnailSummary() {
+        let startTime = CACurrentMediaTime()
+        let timestamp = DateFormatter()
+        timestamp.dateFormat = "HH:mm:ss.SSS"
+        let ts = timestamp.string(from: Date())
+        
+        print("[\(ts)] 📸 ImageScanner: showThumbnailSummary START")
+        
+        let vcCreateStart = CACurrentMediaTime()
         let thumbnailSummaryVC = ThumbnailSummaryViewController()
         thumbnailSummaryVC.delegate = self
-        thumbnailSummaryVC.setScanResults(scanResults)
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: Created ThumbnailSummaryVC (+\(String(format: "%.0f", (CACurrentMediaTime() - vcCreateStart) * 1000))ms)")
         
-        print("📸📸📸 ImageScanner: Showing thumbnail summary with \(scanResults.count) pages")
+        let setResultsStart = CACurrentMediaTime()
+        thumbnailSummaryVC.setScanResults(scanResults)
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: Set scan results (+\(String(format: "%.0f", (CACurrentMediaTime() - setResultsStart) * 1000))ms)")
+        
+        let totalTime = (CACurrentMediaTime() - startTime) * 1000
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: showThumbnailSummary TOTAL: \(String(format: "%.0f", totalTime))ms, pushing with \(scanResults.count) pages")
+        
+        let pushStart = CACurrentMediaTime()
         pushViewController(thumbnailSummaryVC, animated: true)
+        let pushTime = (CACurrentMediaTime() - pushStart) * 1000
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: pushViewController initiated (\(String(format: "%.0f", pushTime))ms)")
     }
     
     /// Updates a scan result from the thumbnail summary edit flow

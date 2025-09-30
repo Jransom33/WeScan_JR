@@ -369,13 +369,19 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
     }
     
     private func processCapturedImage(_ picture: UIImage, detectedQuad: Quadrilateral?, maskImage: UIImage?) {
+        let startTime = CACurrentMediaTime()
+        let timestamp = self.timestamp()
+        print("[\(timestamp)] 📸 Scanner: processCapturedImage START - image size: \(picture.size)")
+        
         // Create scan results for this capture
         let originalScan = ImageScannerScan(image: picture)
+        print("[\(self.timestamp())] 📸 Scanner: Created originalScan (+\(String(format: "%.0f", (CACurrentMediaTime() - startTime) * 1000))ms)")
         
         // Apply perspective correction if we have a detected quad
         let croppedScan: ImageScannerScan
         if let quad = detectedQuad,
            let ciImage = CIImage(image: picture) {
+            let perspectiveStart = CACurrentMediaTime()
             let cgOrientation = CGImagePropertyOrientation(picture.imageOrientation)
             let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
             
@@ -383,7 +389,7 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             var cartesianQuad = quad.toCartesian(withHeight: picture.size.height)
             cartesianQuad.reorganize()
             
-            print("📸📸📸 Scanner: Applying perspective correction with quad")
+            print("[\(self.timestamp())] 📸 Scanner: Applying perspective correction...")
             let filteredImage = orientedImage.applyingFilter("CIPerspectiveCorrection", parameters: [
                 "inputTopLeft": CIVector(cgPoint: cartesianQuad.bottomLeft),
                 "inputTopRight": CIVector(cgPoint: cartesianQuad.bottomRight),
@@ -393,11 +399,14 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             
             let croppedImage = UIImage.from(ciImage: filteredImage)
             croppedScan = ImageScannerScan(image: croppedImage)
+            let perspectiveTime = (CACurrentMediaTime() - perspectiveStart) * 1000
+            print("[\(self.timestamp())] 📸 Scanner: Perspective correction done (\(String(format: "%.0f", perspectiveTime))ms)")
         } else {
-            print("📸📸📸 Scanner: No quad available, using original image as cropped scan")
+            print("[\(self.timestamp())] 📸 Scanner: No quad available, using original image as cropped scan")
             croppedScan = originalScan
         }
         
+        let resultsStart = CACurrentMediaTime()
         let scanResult = ImageScannerResults(
             detectedRectangle: detectedQuad,
             originalScan: originalScan,
@@ -405,9 +414,12 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             enhancedScan: nil,
             overlayImage: maskImage
         )
+        let resultsTime = (CACurrentMediaTime() - resultsStart) * 1000
+        print("[\(self.timestamp())] 📸 Scanner: Created ImageScannerResults (\(String(format: "%.0f", resultsTime))ms)")
         
-        print("📸📸📸 Scanner: Created scan result with overlay: \(maskImage != nil)")
-        print("📸📸📸 Scanner: Going to thumbnail summary")
+        let totalTime = (CACurrentMediaTime() - startTime) * 1000
+        print("[\(self.timestamp())] 📸 Scanner: processCapturedImage TOTAL: \(String(format: "%.0f", totalTime))ms")
+        print("[\(self.timestamp())] 📸 Scanner: Going to thumbnail summary")
         
         // Get or create thumbnail summary view controller
         guard let imageScannerController = navigationController as? ImageScannerController else {

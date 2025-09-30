@@ -78,17 +78,35 @@ public final class ThumbnailSummaryViewController: UIViewController {
     
     public override func viewDidLoad() {
         super.viewDidLoad()
+        let startTime = CACurrentMediaTime()
+        let timestamp = DateFormatter()
+        timestamp.dateFormat = "HH:mm:ss.SSS"
+        let ts = timestamp.string(from: Date())
+        
+        print("[\(ts)] 📸 ThumbnailSummary: viewDidLoad START")
+        
         setupViews()
         setupConstraints()
         setupNavigationBar()
         updateThumbnails()
         
-        print("📸📸📸 ThumbnailSummary: Loaded with \(scanResults.count) scanned pages")
+        let totalTime = (CACurrentMediaTime() - startTime) * 1000
+        print("[\(timestamp.string(from: Date()))] 📸 ThumbnailSummary: viewDidLoad COMPLETE (\(String(format: "%.0f", totalTime))ms) with \(scanResults.count) pages")
     }
     
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        let timestamp = DateFormatter()
+        timestamp.dateFormat = "HH:mm:ss.SSS"
+        print("[\(timestamp.string(from: Date()))] 📸 ThumbnailSummary: viewWillAppear")
         updateThumbnails()
+    }
+    
+    public override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        let timestamp = DateFormatter()
+        timestamp.dateFormat = "HH:mm:ss.SSS"
+        print("[\(timestamp.string(from: Date()))] 📸 ThumbnailSummary: ✅ viewDidAppear - SCREEN VISIBLE TO USER")
     }
     
     // MARK: - Setup
@@ -160,10 +178,20 @@ public final class ThumbnailSummaryViewController: UIViewController {
     
     /// Set all scan results at once
     public func setScanResults(_ results: [ImageScannerResults]) {
-        scanResults = results
-        updateThumbnails()
+        let startTime = CACurrentMediaTime()
+        let timestamp = DateFormatter()
+        timestamp.dateFormat = "HH:mm:ss.SSS"
+        let ts = timestamp.string(from: Date())
         
-        print("📸📸📸 ThumbnailSummary: Set \(results.count) pages")
+        print("[\(ts)] 📸 ThumbnailSummary: setScanResults START with \(results.count) results")
+        scanResults = results
+        
+        let updateStart = CACurrentMediaTime()
+        updateThumbnails()
+        let updateTime = (CACurrentMediaTime() - updateStart) * 1000
+        
+        let totalTime = (CACurrentMediaTime() - startTime) * 1000
+        print("[\(timestamp.string(from: Date()))] 📸 ThumbnailSummary: setScanResults TOTAL: \(String(format: "%.0f", totalTime))ms (updateThumbnails: \(String(format: "%.0f", updateTime))ms)")
     }
     
     /// Update a specific scan result after editing
