@@ -86,8 +86,39 @@ final class EditScanViewController: UIViewController {
     // MARK: - Life Cycle
 
     init(image: UIImage, quad: Quadrilateral?, overlayImage: UIImage? = nil, rotateImage: Bool = true) {
-        self.image = rotateImage ? image.applyingPortraitOrientation() : image
-        self.quad = quad ?? EditScanViewController.defaultQuad(forImage: image)
+        let rotatedImage = rotateImage ? image.applyingPortraitOrientation() : image
+        self.image = rotatedImage
+        
+        print("📸📸📸 EditScan INIT: Image orientation: \(image.imageOrientation.rawValue), size: \(image.size) -> rotated size: \(rotatedImage.size)")
+        
+        // If image was rotated, transform the quad coordinates accordingly
+        if rotateImage && quad != nil {
+            let originalSize = image.size
+            let rotatedSize = rotatedImage.size
+            
+            print("📸📸📸 EditScan INIT: Original quad - TL(\(quad!.topLeft.x), \(quad!.topLeft.y)) BR(\(quad!.bottomRight.x), \(quad!.bottomRight.y))")
+            
+            // Transform quad to match the rotated image
+            var transformedQuad = quad!
+            
+            // If image orientation caused a flip (Up orientation = 180° rotation)
+            if image.imageOrientation == .up {
+                print("📸📸📸 EditScan INIT: Image orientation is .up - applying Y-flip transformation")
+                // Flip Y coordinates for 180° rotation
+                transformedQuad = Quadrilateral(
+                    topLeft: CGPoint(x: quad!.topLeft.x, y: originalSize.height - quad!.topLeft.y),
+                    topRight: CGPoint(x: quad!.topRight.x, y: originalSize.height - quad!.topRight.y),
+                    bottomRight: CGPoint(x: quad!.bottomRight.x, y: originalSize.height - quad!.bottomRight.y),
+                    bottomLeft: CGPoint(x: quad!.bottomLeft.x, y: originalSize.height - quad!.bottomLeft.y)
+                )
+                print("📸📸📸 EditScan INIT: Transformed quad - TL(\(transformedQuad.topLeft.x), \(transformedQuad.topLeft.y)) BR(\(transformedQuad.bottomRight.x), \(transformedQuad.bottomRight.y))")
+            }
+            
+            self.quad = transformedQuad
+        } else {
+            self.quad = quad ?? EditScanViewController.defaultQuad(forImage: rotatedImage)
+        }
+        
         self.overlayImage = overlayImage
         super.init(nibName: nil, bundle: nil)
     }
