@@ -78,6 +78,31 @@ enum CoreMLSegmentationDetector {
         print("🎭🎭🎭 SegmentationDetector: Apply morphology: \(config.applyMorphology)")
     }
     
+    /// Letterbox parameters for image preprocessing (matching .scaleFit)
+    private struct LetterboxParameters {
+        let scale: CGFloat
+        let padX: CGFloat
+        let padY: CGFloat
+    }
+
+    /// Calculate letterbox parameters for 320x320 input while preserving aspect ratio
+    private static func letterboxParameters(originalSize: CGSize, targetSize: CGFloat = 320) -> LetterboxParameters {
+        let scale = min(targetSize / originalSize.width, targetSize / originalSize.height)
+        let scaledWidth = round(originalSize.width * scale)
+        let scaledHeight = round(originalSize.height * scale)
+        let padX = (targetSize - scaledWidth) / 2.0
+        let padY = (targetSize - scaledHeight) / 2.0
+
+        print("🎭🎭🎭 SegmentationDetector: Letterbox parameters:")
+        print("🎭🎭🎭 SegmentationDetector:   Original size: \(originalSize)")
+        print("🎭🎭🎭 SegmentationDetector:   Target size: \(targetSize)")
+        print("🎭🎭🎭 SegmentationDetector:   Scale: \(scale)")
+        print("🎭🎭🎭 SegmentationDetector:   Scaled size: (\(scaledWidth), \(scaledHeight))")
+        print("🎭🎭🎭 SegmentationDetector:   Padding: (\(padX), \(padY))")
+
+        return LetterboxParameters(scale: scale, padX: padX, padY: padY)
+    }
+
     /// Convenience method to configure with a model from bundle
     /// - Parameters:
     ///   - modelName: Name of the model file (without extension)
@@ -195,6 +220,73 @@ enum CoreMLSegmentationDetector {
         
         return mask
     }
+
+    /// Perform morphological closing (dilation followed by erosion) on a binary mask
+    /// - Parameters:
+    ///   - mask: 2D binary mask (values 0.0 or 1.0)
+    ///   - iterations: Number of times to apply the close operation
+    /// - Returns: Cleaned binary mask
+    private static func morphologicalClose(_ mask: [[Float]], iterations: Int) -> [[Float]] {
+        guard iterations > 0 else { return mask }
+        var current = mask
+        for _ in 0..<iterations {
+            current = dilate(current)
+            current = erode(current)
+        }
+        return current
+    }
+
+    /// Dilate binary mask with 3x3 cross-shaped structuring element
+    private static func dilate(_ mask: [[Float]]) -> [[Float]] {
+        let height = mask.count
+        let width = mask.first?.count ?? 0
+        guard height > 0 && width > 0 else { return mask }
+        var out = mask
+        for y in 0..<height {
+            for x in 0..<width {
+                var maxVal: Float = 0.0
+                for dy in -1...1 {
+                    for dx in -1...1 {
+                        if abs(dx) + abs(dy) > 1 { continue } // cross kernel
+                        let ny = y + dy
+                        let nx = x + dx
+                        if ny >= 0 && ny < height && nx >= 0 && nx < width {
+                            maxVal = max(maxVal, mask[ny][nx])
+                        }
+                    }
+                }
+                out[y][x] = maxVal
+            }
+        }
+        return out
+    }
+
+    /// Erode binary mask with 3x3 cross-shaped structuring element
+    private static func erode(_ mask: [[Float]]) -> [[Float]] {
+        let height = mask.count
+        let width = mask.first?.count ?? 0
+        guard height > 0 && width > 0 else { return mask }
+        var out = mask
+        for y in 0..<height {
+            for x in 0..<width {
+                var minVal: Float = 1.0
+                for dy in -1...1 {
+                    for dx in -1...1 {
+                        if abs(dx) + abs(dy) > 1 { continue } // cross kernel
+                        let ny = y + dy
+                        let nx = x + dx
+                        if ny >= 0 && ny < height && nx >= 0 && nx < width {
+                            minVal = min(minVal, mask[ny][nx])
+                        } else {
+                            minVal = 0.0
+                        }
+                    }
+                }
+                out[y][x] = minVal
+            }
+        }
+        return out
+    }
     
     /// Find contour points from binary mask
     private static func findContourPoints(from mask: [[Float]]) -> [CGPoint] {
@@ -271,27 +363,29 @@ enum CoreMLSegmentationDetector {
         return pagePixelCount > 0 ? totalConf / Float(pagePixelCount) : 0.0
     }
     
-    /// Map points from 320x320 space back to original image coordinates
-    private static func mapToOriginalCoordinates(_ points: [CGPoint], from sourceSize: CGSize, to targetSize: CGSize) -> [CGPoint] {
-        let scaleX = targetSize.width / sourceSize.width
-        let scaleY = targetSize.height / sourceSize.height
-        
-        return points.map { point in
-            CGPoint(x: point.x * scaleX, y: point.y * scaleY)
+    /// Unletterbox points from 320x320 space back to original image coordinates
+    private static func unletterboxPoints(_ points320: [CGPoint], letterbox: LetterboxParameters) -> [CGPoint] {
+        return points320.map { point in
+            let originalX = (point.x - letterbox.padX) / letterbox.scale
+            let originalY = (point.y - letterbox.padY) / letterbox.scale
+            return CGPoint(x: originalX, y: originalY)
         }
     }
-    
-    /// Map bounding box from 320x320 space back to original image coordinates
-    private static func mapBoundingBoxToOriginalCoordinates(_ rect: CGRect, from sourceSize: CGSize, to targetSize: CGSize) -> CGRect {
-        let scaleX = targetSize.width / sourceSize.width
-        let scaleY = targetSize.height / sourceSize.height
-        
-        return CGRect(
-            x: rect.origin.x * scaleX,
-            y: rect.origin.y * scaleY,
-            width: rect.width * scaleX,
-            height: rect.height * scaleY
-        )
+
+    /// Unletterbox rect from 320x320 space back to original image coordinates
+    private static func unletterboxRect(_ rect320: CGRect, letterbox: LetterboxParameters) -> CGRect {
+        // Convert rect to four points, unletterbox, then rebuild rect from extremes
+        let p1 = CGPoint(x: rect320.minX, y: rect320.minY)
+        let p2 = CGPoint(x: rect320.maxX, y: rect320.minY)
+        let p3 = CGPoint(x: rect320.maxX, y: rect320.maxY)
+        let p4 = CGPoint(x: rect320.minX, y: rect320.maxY)
+        let mapped = unletterboxPoints([p1, p2, p3, p4], letterbox: letterbox)
+        let xs = mapped.map { $0.x }
+        let ys = mapped.map { $0.y }
+        guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max() else {
+            return .zero
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
     
     /// Main function to detect page segmentation using CoreML model
@@ -331,7 +425,12 @@ enum CoreMLSegmentationDetector {
             }
             
             // Create binary mask
-            let mask = createBinaryMask(from: probabilities, threshold: config.threshold)
+            var mask = createBinaryMask(from: probabilities, threshold: config.threshold)
+
+            // Optional morphology to clean mask (dilate then erode)
+            if config.applyMorphology {
+                mask = morphologicalClose(mask, iterations: 1)
+            }
             
             // Find contour points in 320x320 space
             let contourPoints320 = findContourPoints(from: mask)
@@ -345,10 +444,10 @@ enum CoreMLSegmentationDetector {
             print("🎭🎭🎭 SegmentationDetector: Confidence: \(String(format: "%.3f", confidence))")
             print("🎭🎭🎭 SegmentationDetector: Bounding box (320x320): \(boundingBox320)")
             
-            // Map results back to original image coordinates
-            let modelSize = CGSize(width: 320, height: 320)
-            let originalContourPoints = mapToOriginalCoordinates(contourPoints320, from: modelSize, to: originalSize)
-            let originalBoundingBox = mapBoundingBoxToOriginalCoordinates(boundingBox320, from: modelSize, to: originalSize)
+            // Map results back to original image coordinates (undo letterboxing)
+            let letterbox = letterboxParameters(originalSize: originalSize)
+            let originalContourPoints = unletterboxPoints(contourPoints320, letterbox: letterbox)
+            let originalBoundingBox = unletterboxRect(boundingBox320, letterbox: letterbox)
             
             let result = PageSegmentationResult(
                 mask: mask,
@@ -365,7 +464,7 @@ enum CoreMLSegmentationDetector {
         }
         
         // Use scaleFit to maintain aspect ratio (letterboxing)
-        coreMLRequest.imageCropAndScaleOption = .scaleFit
+        coreMLRequest.imageCropAndScaleOption = VNImageCropAndScaleOption.scaleFit
         
         // Perform the request
         do {
