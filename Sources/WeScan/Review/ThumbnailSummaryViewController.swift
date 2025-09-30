@@ -343,8 +343,14 @@ public final class ThumbnailSummaryViewController: UIViewController {
         currentEditingIndex = index
         
         print("📸📸📸 ThumbnailSummary: Editing page \(index + 1)")
+        print("📸📸📸 ThumbnailSummary: Has overlay image: \(result.overlayImage != nil)")
         
-        let editVC = EditScanViewController(image: result.originalScan.image, quad: result.detectedRectangle)
+        let editVC = EditScanViewController(
+            image: result.originalScan.image,
+            quad: result.detectedRectangle,
+            overlayImage: result.overlayImage,
+            rotateImage: false  // Match gallery flow - image has orientation metadata
+        )
         editVC.editingIndex = index
         navigationController?.pushViewController(editVC, animated: true)
     }
