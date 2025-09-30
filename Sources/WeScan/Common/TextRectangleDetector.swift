@@ -183,10 +183,9 @@ enum HybridRectangleDetector {
                 group.leave()
             }
         } else {
-            VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { result in
-                visionResult = result
-                group.leave()
-            }
+            // DeepLabV3-only: no Vision fallback on older iOS versions
+            visionResult = nil
+            group.leave()
         }
         
         // Run text-based detection

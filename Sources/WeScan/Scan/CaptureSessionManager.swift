@@ -237,28 +237,16 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                     let smoothed = self.kalmanTracker.update(measured: rect, timestamp: timestamp)
                     self.processRectangle(rectangle: smoothed, imageSize: imageSize)
                 } else {
-                    // Fallback to Vision on failure
-                    VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { fallbackRectangle in
-                        if let fb = fallbackRectangle {
-                            let smoothed = self.kalmanTracker.update(measured: fb, timestamp: timestamp)
-                            self.processRectangle(rectangle: smoothed, imageSize: imageSize)
-                        } else {
-                            self.processRectangle(rectangle: nil, imageSize: imageSize)
-                        }
-                    }
+                    // DeepLabV3-only: do not fall back to other detectors
+                    self.processRectangle(rectangle: nil, imageSize: imageSize)
                 }
             }
         } else if #available(iOS 11.0, *) {
-            // Fall back to Vision for older iOS versions
-            VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { [weak self] rectangle in
-                guard let self = self else { return }
-                self.processRectangle(rectangle: rectangle, imageSize: imageSize)
-            }
+            // DeepLabV3-only: no alternative detection on older iOS versions
+            self.processRectangle(rectangle: nil, imageSize: imageSize)
         } else {
-            let finalImage = CIImage(cvPixelBuffer: pixelBuffer)
-            CIRectangleDetector.rectangle(forImage: finalImage) { rectangle in
-                self.processRectangle(rectangle: rectangle, imageSize: imageSize)
-            }
+            // DeepLabV3-only: no alternative detection on older iOS versions
+            self.processRectangle(rectangle: nil, imageSize: imageSize)
         }
     }
 

@@ -208,24 +208,19 @@ public final class ImageScannerController: UINavigationController {
         let orientation = CGImagePropertyOrientation(image.imageOrientation)
         let orientedImage = ciImage.oriented(forExifOrientation: Int32(orientation.rawValue))
 
-        if #available(iOS 11.0, *) {
-            // Try CoreML-based corner detection first, fall back to Vision if model not available
-            CoreMLRectangleDetector.rectangle(forImage: ciImage, orientation: orientation) { quad in
-                if quad == nil {
-                    // Fall back to traditional Vision detection if CoreML model not available
-                    VisionRectangleDetector.rectangle(forImage: ciImage, orientation: orientation) { fallbackQuad in
-                        let detectedQuad = fallbackQuad?.toCartesian(withHeight: orientedImage.extent.height)
-                        completion(detectedQuad)
-                    }
-                } else {
-                    let detectedQuad = quad?.toCartesian(withHeight: orientedImage.extent.height)
+        if #available(iOS 15.0, *) {
+            // DeepLabV3-only: use segmentation (orientation-aware) to produce a rectangle
+            CoreMLSegmentationDetector.segmentPage(forImage: ciImage, orientation: orientation) { result in
+                if let result, let quad = CoreMLSegmentationDetector.convertToQuadrilateral(from: result) {
+                    let detectedQuad = quad.toCartesian(withHeight: orientedImage.extent.height)
                     completion(detectedQuad)
+                } else {
+                    completion(nil)
                 }
             }
         } else {
-            // Use the CIRectangleDetector on iOS 10 to attempt to find a rectangle from the initial image.
-            let detectedQuad = CIRectangleDetector.rectangle(forImage: ciImage)?.toCartesian(withHeight: orientedImage.extent.height)
-            completion(detectedQuad)
+            // DeepLabV3-only: no alternative detection on older iOS versions
+            completion(nil)
         }
     }
 
