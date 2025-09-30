@@ -202,11 +202,17 @@ public enum CoreMLSegmentationDetector {
         print("🎭🎭🎭 SegmentationDetector: Creating binary mask with threshold \(threshold)")
         var pagePixelCount = 0
         var totalPixels = 0
+        var minPageProb: Float = 1.0
+        var maxPageProb: Float = 0.0
+        var sumPageProb: Float = 0.0
         
         for h in 0..<height {
             for w in 0..<width {
                 let pageProb = probabilities[[0, 1, h, w] as [NSNumber]].floatValue
                 totalPixels += 1
+                sumPageProb += pageProb
+                minPageProb = min(minPageProb, pageProb)
+                maxPageProb = max(maxPageProb, pageProb)
                 
                 if pageProb > threshold {
                     mask[h][w] = 1.0
@@ -216,7 +222,9 @@ public enum CoreMLSegmentationDetector {
         }
         
         let pageRatio = Float(pagePixelCount) / Float(totalPixels)
+        let avgPageProb = sumPageProb / Float(totalPixels)
         print("🎭🎭🎭 SegmentationDetector: Page pixels: \(pagePixelCount)/\(totalPixels) (\(String(format: "%.1f", pageRatio * 100))%)")
+        print("🎭🎭🎭 SegmentationDetector: Page prob range: [\(String(format: "%.3f", minPageProb)), \(String(format: "%.3f", maxPageProb))], avg: \(String(format: "%.3f", avgPageProb))")
         
         return mask
     }
@@ -401,12 +409,21 @@ public enum CoreMLSegmentationDetector {
         }
 
         let colorSpace = CGColorSpaceCreateDeviceRGB()
-        return pixels.withUnsafeMutableBytes { ptr in
+        let result: UIImage? = pixels.withUnsafeMutableBytes { ptr in
             guard let base = ptr.baseAddress else { return nil }
             guard let ctx = CGContext(data: base, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
             guard let cgImage = ctx.makeImage() else { return nil }
             return UIImage(cgImage: cgImage)
         }
+        
+        // Debug: Count non-transparent pixels
+        var opaquePixelCount = 0
+        for i in stride(from: 3, to: pixels.count, by: 4) {
+            if pixels[i] > 0 { opaquePixelCount += 1 }
+        }
+        print("🎭🎭🎭 SegmentationDetector: Rendered overlay image: \(width)x\(height), opaque pixels: \(opaquePixelCount)/\(width*height)")
+        
+        return result
     }
     
     /// Unletterbox points from 320x320 space back to original image coordinates
