@@ -72,6 +72,13 @@ public final class ScannerViewController: UIViewController {
         activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         return activityIndicator
     }()
+    
+    /// Helper function to get timestamp for logging
+    private func timestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: Date())
+    }
 
     // MARK: - Life Cycle
 
