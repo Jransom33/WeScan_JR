@@ -59,7 +59,7 @@ public struct PageSegmentationResult {
 
 /// CoreML-based page segmentation detector using trained DeepLabV3 model
 @available(iOS 15.0, *)
-enum CoreMLSegmentationDetector {
+public enum CoreMLSegmentationDetector {
     
     private static var visionModel: VNCoreMLModel?
     private static var config: CoreMLSegmentationConfig = .default
@@ -68,7 +68,7 @@ enum CoreMLSegmentationDetector {
     /// - Parameters:
     ///   - model: The CoreML DeepLabV3 model to use for page segmentation
     ///   - config: Segmentation configuration including thresholds
-    static func configure(with model: MLModel, config: CoreMLSegmentationConfig = .default) throws {
+    public static func configure(with model: MLModel, config: CoreMLSegmentationConfig = .default) throws {
         let visionMLModel = try VNCoreMLModel(for: model)
         self.visionModel = visionMLModel
         self.config = config
@@ -108,7 +108,7 @@ enum CoreMLSegmentationDetector {
     ///   - modelName: Name of the model file (without extension)
     ///   - bundle: Bundle containing the model (defaults to main bundle)
     ///   - config: Segmentation configuration including thresholds
-    static func configure(modelName: String, in bundle: Bundle = Bundle.main, config: CoreMLSegmentationConfig = .default) throws {
+    public static func configure(modelName: String, in bundle: Bundle = Bundle.main, config: CoreMLSegmentationConfig = .default) throws {
         guard let modelURL = bundle.url(forResource: modelName, withExtension: "mlpackage") else {
             throw NSError(domain: "CoreMLSegmentationDetector", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "CoreML segmentation model '\(modelName).mlpackage' not found in bundle"
@@ -120,7 +120,7 @@ enum CoreMLSegmentationDetector {
     }
     
     /// Check if a CoreML segmentation model has been configured
-    static var isConfigured: Bool {
+    public static var isConfigured: Bool {
         return visionModel != nil
     }
     
@@ -526,7 +526,7 @@ enum CoreMLSegmentationDetector {
     /// - Parameters:
     ///   - pixelBuffer: The pixelBuffer to segment
     ///   - completion: The segmentation result
-    static func segmentPage(forPixelBuffer pixelBuffer: CVPixelBuffer, completion: @escaping ((PageSegmentationResult?) -> Void)) {
+    public static func segmentPage(forPixelBuffer pixelBuffer: CVPixelBuffer, completion: @escaping ((PageSegmentationResult?) -> Void)) {
         let imageRequestHandler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
         let originalSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
         detectPageSegmentation(for: imageRequestHandler, originalSize: originalSize, completion: completion)
@@ -537,7 +537,7 @@ enum CoreMLSegmentationDetector {
     /// - Parameters:
     ///   - image: The image to segment
     ///   - completion: The segmentation result
-    static func segmentPage(forImage image: CIImage, completion: @escaping ((PageSegmentationResult?) -> Void)) {
+    public static func segmentPage(forImage image: CIImage, completion: @escaping ((PageSegmentationResult?) -> Void)) {
         let imageRequestHandler = VNImageRequestHandler(ciImage: image, options: [:])
         detectPageSegmentation(for: imageRequestHandler, originalSize: image.extent.size, completion: completion)
     }
@@ -548,7 +548,7 @@ enum CoreMLSegmentationDetector {
     ///   - image: The image to segment
     ///   - orientation: The orientation of the image
     ///   - completion: The segmentation result
-    static func segmentPage(
+    public static func segmentPage(
         forImage image: CIImage,
         orientation: CGImagePropertyOrientation,
         completion: @escaping ((PageSegmentationResult?) -> Void)
@@ -586,7 +586,7 @@ enum CoreMLSegmentationDetector {
     /// Convert segmentation result to quadrilateral by finding the best-fit rectangle
     /// - Parameter segmentationResult: The page segmentation result
     /// - Returns: A quadrilateral representing the detected page bounds, or nil if conversion fails
-    static func convertToQuadrilateral(from segmentationResult: PageSegmentationResult) -> Quadrilateral? {
+    public static func convertToQuadrilateral(from segmentationResult: PageSegmentationResult) -> Quadrilateral? {
         let contourPoints = segmentationResult.contourPoints
         
         guard contourPoints.count >= 4 else {
@@ -679,7 +679,7 @@ enum CoreMLSegmentationDetector {
     /// - Parameters:
     ///   - pixelBuffer: The pixelBuffer to detect rectangles on.
     ///   - completion: The detected rectangle on the CVPixelBuffer
-    static func rectangle(forPixelBuffer pixelBuffer: CVPixelBuffer, completion: @escaping ((Quadrilateral?) -> Void)) {
+    public static func rectangle(forPixelBuffer pixelBuffer: CVPixelBuffer, completion: @escaping ((Quadrilateral?) -> Void)) {
         segmentPage(forPixelBuffer: pixelBuffer) { segmentationResult in
             guard let result = segmentationResult else {
                 completion(nil)
@@ -696,7 +696,7 @@ enum CoreMLSegmentationDetector {
     /// - Parameters:
     ///   - image: The image to detect rectangles on.
     ///   - completion: The detected rectangle on the image.
-    static func rectangle(forImage image: CIImage, completion: @escaping ((Quadrilateral?) -> Void)) {
+    public static func rectangle(forImage image: CIImage, completion: @escaping ((Quadrilateral?) -> Void)) {
         segmentPage(forImage: image) { segmentationResult in
             guard let result = segmentationResult else {
                 completion(nil)
