@@ -77,8 +77,10 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     /// Simplified autocapture: count consecutive stable frames with detected rectangle
     private var stableFramesWithRectangle = 0
     
-    /// Number of consecutive stable frames required before autocapture (at ~30fps, 10 frames = ~333ms)
-    private let requiredStableFrames = 10
+    /// Number of consecutive stable frames required before autocapture  
+    /// With DeepLabV3 inference taking ~40ms + processing, we get ~1 frame/sec when stable
+    /// So 3 frames = ~3-4 seconds which is reasonable for autocapture
+    private let requiredStableFrames = 3
     
     /// Get timestamp for logging
     private func timestamp() -> String {
