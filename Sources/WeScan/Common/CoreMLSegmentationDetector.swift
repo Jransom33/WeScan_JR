@@ -392,17 +392,33 @@ public enum CoreMLSegmentationDetector {
         let lb = letterboxParameters(originalSize: originalSize)
         let h = mask.count
         let w = mask[0].count
+        
+        // Calculate pixel size in original image space (how many original pixels per mask pixel)
+        let pixelScale = 1.0 / lb.scale
+        let pixelWidth = Int(ceil(pixelScale))
+        let pixelHeight = Int(ceil(pixelScale))
+        
         for y in 0..<h {
             for x in 0..<w {
                 if mask[y][x] >= threshold {
-                    let ox = Int(((CGFloat(x) - lb.padX) / lb.scale).rounded())
-                    let oy = Int(((CGFloat(y) - lb.padY) / lb.scale).rounded())
-                    if ox >= 0 && ox < width && oy >= 0 && oy < height {
-                        let idx = (oy * width + ox) * 4
-                        pixels[idx + 0] = outR
-                        pixels[idx + 1] = outG
-                        pixels[idx + 2] = outB
-                        pixels[idx + 3] = outA
+                    // Calculate the center of this mask pixel in original image coordinates
+                    let centerX = (CGFloat(x) - lb.padX) / lb.scale
+                    let centerY = (CGFloat(y) - lb.padY) / lb.scale
+                    
+                    // Fill a rectangle around this center point
+                    let startX = Int(centerX) - pixelWidth / 2
+                    let startY = Int(centerY) - pixelHeight / 2
+                    let endX = startX + pixelWidth
+                    let endY = startY + pixelHeight
+                    
+                    for py in max(0, startY)..<min(height, endY) {
+                        for px in max(0, startX)..<min(width, endX) {
+                            let idx = (py * width + px) * 4
+                            pixels[idx + 0] = outR
+                            pixels[idx + 1] = outG
+                            pixels[idx + 2] = outB
+                            pixels[idx + 3] = outA
+                        }
                     }
                 }
             }
