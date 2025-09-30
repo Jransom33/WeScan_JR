@@ -96,23 +96,51 @@ final class EditScanViewController: UIViewController {
             let originalSize = image.size
             let rotatedSize = rotatedImage.size
             
-            print("📸📸📸 EditScan INIT: Original quad - TL(\(quad!.topLeft.x), \(quad!.topLeft.y)) BR(\(quad!.bottomRight.x), \(quad!.bottomRight.y))")
+            print("📸📸📸 EditScan INIT: Original quad from detector - TL(\(quad!.topLeft.x), \(quad!.topLeft.y)) BR(\(quad!.bottomRight.x), \(quad!.bottomRight.y))")
             
             // Transform quad to match the rotated image
             var transformedQuad = quad!
             
-            // If image orientation caused a flip (Up orientation = 180° rotation)
-            if image.imageOrientation == .up {
-                print("📸📸📸 EditScan INIT: Image orientation is .up - applying Y-flip transformation")
-                // Flip Y coordinates for 180° rotation
+            switch image.imageOrientation {
+            case .up:
+                // 180° rotation - flip both X and Y
+                print("📸📸📸 EditScan INIT: Orientation .up - applying 180° rotation (flip X and Y)")
                 transformedQuad = Quadrilateral(
-                    topLeft: CGPoint(x: quad!.topLeft.x, y: originalSize.height - quad!.topLeft.y),
-                    topRight: CGPoint(x: quad!.topRight.x, y: originalSize.height - quad!.topRight.y),
-                    bottomRight: CGPoint(x: quad!.bottomRight.x, y: originalSize.height - quad!.bottomRight.y),
-                    bottomLeft: CGPoint(x: quad!.bottomLeft.x, y: originalSize.height - quad!.bottomLeft.y)
+                    topLeft: CGPoint(x: originalSize.width - quad!.topLeft.x, y: originalSize.height - quad!.topLeft.y),
+                    topRight: CGPoint(x: originalSize.width - quad!.topRight.x, y: originalSize.height - quad!.topRight.y),
+                    bottomRight: CGPoint(x: originalSize.width - quad!.bottomRight.x, y: originalSize.height - quad!.bottomRight.y),
+                    bottomLeft: CGPoint(x: originalSize.width - quad!.bottomLeft.x, y: originalSize.height - quad!.bottomLeft.y)
                 )
-                print("📸📸📸 EditScan INIT: Transformed quad - TL(\(transformedQuad.topLeft.x), \(transformedQuad.topLeft.y)) BR(\(transformedQuad.bottomRight.x), \(transformedQuad.bottomRight.y))")
+                
+            case .right:
+                // 90° clockwise rotation: new_x = y, new_y = width - x
+                print("📸📸📸 EditScan INIT: Orientation .right - applying 90° rotation")
+                transformedQuad = Quadrilateral(
+                    topLeft: CGPoint(x: quad!.topLeft.y, y: originalSize.width - quad!.topLeft.x),
+                    topRight: CGPoint(x: quad!.topRight.y, y: originalSize.width - quad!.topRight.x),
+                    bottomRight: CGPoint(x: quad!.bottomRight.y, y: originalSize.width - quad!.bottomRight.x),
+                    bottomLeft: CGPoint(x: quad!.bottomLeft.y, y: originalSize.width - quad!.bottomLeft.x)
+                )
+                
+            case .down:
+                // 180° rotation with flips
+                print("📸📸📸 EditScan INIT: Orientation .down - applying 180° rotation with flips")
+                transformedQuad = Quadrilateral(
+                    topLeft: CGPoint(x: originalSize.width - quad!.topLeft.x, y: originalSize.height - quad!.topLeft.y),
+                    topRight: CGPoint(x: originalSize.width - quad!.topRight.x, y: originalSize.height - quad!.topRight.y),
+                    bottomRight: CGPoint(x: originalSize.width - quad!.bottomRight.x, y: originalSize.height - quad!.bottomRight.y),
+                    bottomLeft: CGPoint(x: originalSize.width - quad!.bottomLeft.x, y: originalSize.height - quad!.bottomLeft.y)
+                )
+                
+            case .left:
+                // No rotation needed
+                print("📸📸📸 EditScan INIT: Orientation .left - no transformation needed")
+                
+            default:
+                print("📸📸📸 EditScan INIT: Orientation \(image.imageOrientation.rawValue) - no transformation")
             }
+            
+            print("📸📸📸 EditScan INIT: Transformed quad for display - TL(\(transformedQuad.topLeft.x), \(transformedQuad.topLeft.y)) BR(\(transformedQuad.bottomRight.x), \(transformedQuad.bottomRight.y))")
             
             self.quad = transformedQuad
         } else {
