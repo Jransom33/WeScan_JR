@@ -55,6 +55,9 @@ public struct PageSegmentationResult {
     
     /// Contour points of the page boundary in original image coordinates
     public let contourPoints: [CGPoint]
+    
+    /// Original size of the image that was segmented
+    public let originalSize: CGSize
 }
 
 /// CoreML-based page segmentation detector using trained DeepLabV3 model
@@ -532,7 +535,8 @@ public enum CoreMLSegmentationDetector {
                 mask: mask,
                 boundingBox: originalBoundingBox,
                 confidence: confidence,
-                contourPoints: originalContourPoints
+                contourPoints: originalContourPoints,
+                originalSize: originalSize
             )
             
             print("🎭🎭🎭 SegmentationDetector: Successfully detected page segmentation")
