@@ -56,6 +56,8 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     private let rectangleFunnel = RectangleFeaturesFunnel()
     weak var delegate: RectangleDetectionDelegateProtocol?
     private var displayedRectangleResult: RectangleDetectorResult?
+    private let stabilityMonitor = MotionStabilityMonitor()
+    private let kalmanTracker = KalmanRectangleTracker()
     
     /// Enable text-based rectangle detection (requires iOS 11+)
     var useTextBasedDetection: Bool = true
@@ -136,6 +138,9 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
         videoPreviewLayer.videoGravity = .resizeAspectFill
 
         videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "video_ouput_queue"))
+
+        // Start motion stability monitoring
+        stabilityMonitor.start()
     }
 
     // MARK: Capture Session Life Cycle
@@ -176,6 +181,8 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
 
     internal func stop() {
         captureSession.stopRunning()
+        stabilityMonitor.stop()
+        kalmanTracker.reset()
     }
 
     internal func capturePhoto() {
@@ -212,17 +219,30 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
         let imageSize = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
 
         if #available(iOS 15.0, *) {
-            // Try CoreML-based segmentation detection first, fall back to Vision if model not available
+            let timestamp = CACurrentMediaTime()
+            // If device is not stable, skip AI and predict with Kalman if possible
+            if !stabilityMonitor.isStable, let predicted = kalmanTracker.predict(timestamp: timestamp) {
+                self.processRectangle(rectangle: predicted, imageSize: imageSize)
+                return
+            }
+
+            // Device stable → run AI segmentation
             CoreMLSegmentationDetector.rectangle(forPixelBuffer: pixelBuffer) { [weak self] rectangle in
                 guard let self = self else { return }
-                
-                // If segmentation detection failed, fall back to traditional Vision detection
-                if rectangle == nil {
-                    VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { fallbackRectangle in
-                        self.processRectangle(rectangle: fallbackRectangle, imageSize: imageSize)
-                    }
+                if let rect = rectangle {
+                    // Update Kalman with new measurement and display smoothed result
+                    let smoothed = self.kalmanTracker.update(measured: rect, timestamp: timestamp)
+                    self.processRectangle(rectangle: smoothed, imageSize: imageSize)
                 } else {
-                    self.processRectangle(rectangle: rectangle, imageSize: imageSize)
+                    // Fallback to Vision on failure
+                    VisionRectangleDetector.rectangle(forPixelBuffer: pixelBuffer) { fallbackRectangle in
+                        if let fb = fallbackRectangle {
+                            let smoothed = self.kalmanTracker.update(measured: fb, timestamp: timestamp)
+                            self.processRectangle(rectangle: smoothed, imageSize: imageSize)
+                        } else {
+                            self.processRectangle(rectangle: nil, imageSize: imageSize)
+                        }
+                    }
                 }
             }
         } else if #available(iOS 11.0, *) {
