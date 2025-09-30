@@ -320,12 +320,61 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
     func captureSessionManager(_ captureSessionManager: CaptureSessionManager, didCapturePicture picture: UIImage, withQuad quad: Quadrilateral?) {
         activityIndicator.stopAnimating()
 
+        print("📸📸📸 Scanner: Processing captured image - size: \(picture.size), orientation: \(picture.imageOrientation.rawValue)")
+        
+        // Run DeepLabV3 detection on the captured high-res image to get accurate quad and mask
+        guard let ciImage = CIImage(image: picture) else {
+            print("❌ Scanner: Failed to create CIImage from captured picture")
+            shutterButton.isUserInteractionEnabled = true
+            return
+        }
+        
+        let cgOrientation = CGImagePropertyOrientation(picture.imageOrientation)
+        
+        if #available(iOS 15.0, *) {
+            // Run full DeepLabV3 detection on captured image (same as gallery flow)
+            CoreMLSegmentationDetector.segmentPage(forImage: ciImage, orientation: cgOrientation) { [weak self] result in
+                guard let self = self else { return }
+                
+                var detectedQuad: Quadrilateral?
+                var maskImage: UIImage?
+                
+                if let result = result, let quad = CoreMLSegmentationDetector.convertToQuadrilateral(from: result) {
+                    print("📸📸📸 Scanner: DeepLabV3 detected quad on captured image")
+                    let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
+                    detectedQuad = quad.toCartesian(withHeight: orientedImage.extent.height)
+                    
+                    // Generate mask overlay (light blue, same as gallery flow)
+                    maskImage = CoreMLSegmentationDetector.renderMaskImage(
+                        originalSize: picture.size,
+                        mask: result.mask,
+                        threshold: 0.5,
+                        color: .systemBlue,
+                        alpha: 0.45
+                    )
+                    print("📸📸📸 Scanner: Generated mask overlay: \(maskImage != nil)")
+                } else {
+                    print("📸📸📸 Scanner: No quad detected by DeepLabV3, using live preview quad if available")
+                    detectedQuad = quad
+                }
+                
+                // Process the captured image with detected quad and mask
+                self.processCapturedImage(picture, detectedQuad: detectedQuad, maskImage: maskImage)
+            }
+        } else {
+            // iOS < 15: Use the quad from live preview
+            print("📸📸📸 Scanner: iOS < 15, using live preview quad")
+            self.processCapturedImage(picture, detectedQuad: quad, maskImage: nil)
+        }
+    }
+    
+    private func processCapturedImage(_ picture: UIImage, detectedQuad: Quadrilateral?, maskImage: UIImage?) {
         // Create scan results for this capture
         let originalScan = ImageScannerScan(image: picture)
         
         // Apply perspective correction if we have a detected quad
         let croppedScan: ImageScannerScan
-        if let quad = quad,
+        if let quad = detectedQuad,
            let ciImage = CIImage(image: picture) {
             let cgOrientation = CGImagePropertyOrientation(picture.imageOrientation)
             let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
@@ -334,6 +383,7 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             var cartesianQuad = quad.toCartesian(withHeight: picture.size.height)
             cartesianQuad.reorganize()
             
+            print("📸📸📸 Scanner: Applying perspective correction with quad")
             let filteredImage = orientedImage.applyingFilter("CIPerspectiveCorrection", parameters: [
                 "inputTopLeft": CIVector(cgPoint: cartesianQuad.bottomLeft),
                 "inputTopRight": CIVector(cgPoint: cartesianQuad.bottomRight),
@@ -344,16 +394,20 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             let croppedImage = UIImage.from(ciImage: filteredImage)
             croppedScan = ImageScannerScan(image: croppedImage)
         } else {
+            print("📸📸📸 Scanner: No quad available, using original image as cropped scan")
             croppedScan = originalScan
         }
         
         let scanResult = ImageScannerResults(
+            detectedRectangle: detectedQuad,
             originalScan: originalScan,
             croppedScan: croppedScan,
-            detectedRectangle: quad
+            enhancedScan: nil,
+            overlayImage: maskImage
         )
         
-        print("📸📸📸 Scanner: Captured page, going to thumbnail summary instead of edit view")
+        print("📸📸📸 Scanner: Created scan result with overlay: \(maskImage != nil)")
+        print("📸📸📸 Scanner: Going to thumbnail summary")
         
         // Get or create thumbnail summary view controller
         guard let imageScannerController = navigationController as? ImageScannerController else {
