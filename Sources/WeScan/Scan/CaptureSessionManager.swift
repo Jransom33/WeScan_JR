@@ -58,6 +58,7 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     private let stabilityMonitor = MotionStabilityMonitor()
     private let kalmanTracker = KalmanRectangleTracker()
     private var lastSegmentationContour: [CGPoint]? = nil
+    private var lastSegmentationImageSize: CGSize? = nil  // Store image size for Kalman predictions
     private var maskOverlayLayer: CAShapeLayer?
     
     /// Enable text-based rectangle detection (requires iOS 11+)
@@ -228,8 +229,9 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
         if #available(iOS 15.0, *) {
             let timestamp = CACurrentMediaTime()
             // If device is not stable, skip AI and predict with Kalman if possible
-            if !stabilityMonitor.isStable, let predicted = kalmanTracker.predict(timestamp: timestamp) {
-                self.processRectangle(rectangle: predicted, imageSize: imageSize)
+            if !stabilityMonitor.isStable, let predicted = kalmanTracker.predict(timestamp: timestamp),
+               let lastSize = lastSegmentationImageSize {
+                self.processRectangle(rectangle: predicted, imageSize: lastSize)
                 return
             }
 
@@ -238,9 +240,12 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                 guard let self = self else { return }
                 if let result = segResult, let rect = CoreMLSegmentationDetector.convertToQuadrilateral(from: result) {
                     self.lastSegmentationContour = result.contourPoints
+                    // Store the segmentation image size for future Kalman predictions
+                    let segImageSize = result.originalSize
+                    self.lastSegmentationImageSize = segImageSize
                     // Update Kalman with new measurement and display smoothed result
                     let smoothed = self.kalmanTracker.update(measured: rect, timestamp: timestamp)
-                    self.processRectangle(rectangle: smoothed, imageSize: imageSize)
+                    self.processRectangle(rectangle: smoothed, imageSize: segImageSize)
                 } else {
                     // DeepLabV3-only: do not fall back to other detectors
                     self.processRectangle(rectangle: nil, imageSize: imageSize)

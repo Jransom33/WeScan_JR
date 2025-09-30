@@ -25,17 +25,17 @@ final class MotionStabilityMonitor {
     /// Exponential smoothing factor (0..1)
     private let smoothingAlpha: Double = 0.2
 
-    /// Thresholds to determine stability (tuned conservatively)
-    private let accelStableThreshold: Double = 0.02   // in g (~m/s^2 normalized)
-    private let gyroStableThreshold: Double = 0.03    // rad/s
+    /// Thresholds to determine stability (made less sensitive for better autocapture)
+    private let accelStableThreshold: Double = 0.03   // in g (~m/s^2 normalized)
+    private let gyroStableThreshold: Double = 0.05    // rad/s
 
-    /// Hysteresis margins
-    private let accelUnstableThreshold: Double = 0.035
-    private let gyroUnstableThreshold: Double = 0.06
+    /// Hysteresis margins (wider to prevent flickering)
+    private let accelUnstableThreshold: Double = 0.08
+    private let gyroUnstableThreshold: Double = 0.12
 
     /// Require consecutive stable samples before reporting stable
-    private let requiredStableSamples: Int = 5
-    private let requiredUnstableSamples: Int = 2
+    private let requiredStableSamples: Int = 8  // ~133ms at 60Hz
+    private let requiredUnstableSamples: Int = 5  // Need more unstable samples to lose stability
 
     private var stableSampleCount: Int = 0
     private var unstableSampleCount: Int = 0
