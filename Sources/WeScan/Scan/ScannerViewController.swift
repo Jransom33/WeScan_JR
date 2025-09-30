@@ -340,37 +340,35 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
         
         if #available(iOS 15.0, *) {
             // Run full DeepLabV3 detection on captured image (same as gallery flow)
+            let renderStart = CACurrentMediaTime()
             CoreMLSegmentationDetector.segmentPage(forImage: ciImage, orientation: cgOrientation) { [weak self] result in
                 guard let self = self else { return }
+                
+                let callbackTime = (CACurrentMediaTime() - renderStart) * 1000
+                print("[\(self.timestamp())] 📸 Scanner: Segmentation callback after \(String(format: "%.0f", callbackTime))ms")
                 
                 var detectedQuad: Quadrilateral?
                 var maskImage: UIImage?
                 
                 if let result = result, let quad = CoreMLSegmentationDetector.convertToQuadrilateral(from: result) {
-                    print("📸📸📸 Scanner: DeepLabV3 detected quad on captured image")
+                    print("[\(self.timestamp())] 📸 Scanner: DeepLabV3 detected quad on captured image")
                     let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
                     detectedQuad = quad.toCartesian(withHeight: orientedImage.extent.height)
                     
-                    // Generate mask overlay (light blue, same as gallery flow)
-                    maskImage = CoreMLSegmentationDetector.renderMaskImage(
-                        originalSize: picture.size,
-                        mask: result.mask,
-                        threshold: 0.5,
-                        color: .systemBlue,
-                        alpha: 0.45
-                    )
-                    print("📸📸📸 Scanner: Generated mask overlay: \(maskImage != nil)")
+                    // SKIP EXPENSIVE MASK RENDERING (saves ~4 seconds!)
+                    // Render mask lazily in EditScanViewController if needed
+                    print("[\(self.timestamp())] 📸 Scanner: Skipping mask rendering for speed (will render in edit screen)")
                 } else {
-                    print("📸📸📸 Scanner: No quad detected by DeepLabV3, using live preview quad if available")
+                    print("[\(self.timestamp())] 📸 Scanner: No quad detected by DeepLabV3, using live preview quad if available")
                     detectedQuad = quad
                 }
                 
-                // Process the captured image with detected quad and mask
+                // Process the captured image with detected quad (NO mask - saves 4+ seconds!)
                 self.processCapturedImage(picture, detectedQuad: detectedQuad, maskImage: maskImage)
             }
         } else {
             // iOS < 15: Use the quad from live preview
-            print("📸📸📸 Scanner: iOS < 15, using live preview quad")
+            print("[\(self.timestamp())] 📸 Scanner: iOS < 15, using live preview quad")
             self.processCapturedImage(picture, detectedQuad: quad, maskImage: nil)
         }
     }
