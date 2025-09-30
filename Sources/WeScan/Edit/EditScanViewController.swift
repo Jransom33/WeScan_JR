@@ -241,9 +241,14 @@ final class EditScanViewController: UIViewController {
             size: CGSize(width: quadViewWidthConstraint.constant, height: quadViewHeightConstraint.constant)
         )
 
+        print("📸📸📸 EditScan: displayQuad - imageSize: \(imageSize), imageFrame: \(imageFrame.size)")
+        print("📸📸📸 EditScan: Original quad - TL(\(quad.topLeft.x), \(quad.topLeft.y)) TR(\(quad.topRight.x), \(quad.topRight.y)) BR(\(quad.bottomRight.x), \(quad.bottomRight.y)) BL(\(quad.bottomLeft.x), \(quad.bottomLeft.y))")
+
         let scaleTransform = CGAffineTransform.scaleTransform(forSize: imageSize, aspectFillInSize: imageFrame.size)
         let transforms = [scaleTransform]
         let transformedQuad = quad.applyTransforms(transforms)
+
+        print("📸📸📸 EditScan: Transformed quad - TL(\(transformedQuad.topLeft.x), \(transformedQuad.topLeft.y)) TR(\(transformedQuad.topRight.x), \(transformedQuad.topRight.y)) BR(\(transformedQuad.bottomRight.x), \(transformedQuad.bottomRight.y)) BL(\(transformedQuad.bottomLeft.x), \(transformedQuad.bottomLeft.y))")
 
         quadView.drawQuadrilateral(quad: transformedQuad, animated: false)
     }
