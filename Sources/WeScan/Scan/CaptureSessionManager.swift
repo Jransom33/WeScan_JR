@@ -58,6 +58,8 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
     private var displayedRectangleResult: RectangleDetectorResult?
     private let stabilityMonitor = MotionStabilityMonitor()
     private let kalmanTracker = KalmanRectangleTracker()
+    private var lastSegmentationContour: [CGPoint]? = nil
+    private var maskOverlayLayer: CAShapeLayer?
     
     /// Enable text-based rectangle detection (requires iOS 11+)
     var useTextBasedDetection: Bool = true
@@ -226,10 +228,11 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                 return
             }
 
-            // Device stable → run AI segmentation
-            CoreMLSegmentationDetector.rectangle(forPixelBuffer: pixelBuffer) { [weak self] rectangle in
+            // Device stable → run AI segmentation and keep contour for overlay
+            CoreMLSegmentationDetector.segmentPage(forPixelBuffer: pixelBuffer) { [weak self] segResult in
                 guard let self = self else { return }
-                if let rect = rectangle {
+                if let result = segResult, let rect = CoreMLSegmentationDetector.convertToQuadrilateral(from: result) {
+                    self.lastSegmentationContour = result.contourPoints
                     // Update Kalman with new measurement and display smoothed result
                     let smoothed = self.kalmanTracker.update(measured: rect, timestamp: timestamp)
                     self.processRectangle(rectangle: smoothed, imageSize: imageSize)
@@ -270,8 +273,9 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                     return
                 }
 
-                let shouldAutoScan = (result == .showAndAutoScan)
-                print("📸📸📸 CaptureSession: Funnel result - shouldAutoScan: \(shouldAutoScan)")
+                // Override auto-scan policy: capture when device is stable
+                let shouldAutoScan = stabilityMonitor.isStable
+                print("📸📸📸 CaptureSession: Stability-gated auto-scan - stable: \(shouldAutoScan)")
                 print("📸📸📸 CaptureSession: Auto-scan enabled: \(CaptureSession.current.isAutoScanEnabled), isEditing: \(CaptureSession.current.isEditing)")
                 
                 self.displayRectangleResult(rectangleResult: RectangleDetectorResult(rectangle: rectangle, imageSize: imageSize))
@@ -284,9 +288,14 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
                     print("🔥 CAPTURED IMAGE ASPECT RATIO: \(String(format: "%.3f", capturedAspectRatio)) | AREA: \(String(format: "%.0f", capturedArea)) pixels")
                     print("🔥 RECTANGLE BOUNDS: TL(\(String(format: "%.1f", rectangle.topLeft.x)), \(String(format: "%.1f", rectangle.topLeft.y))) TR(\(String(format: "%.1f", rectangle.topRight.x)), \(String(format: "%.1f", rectangle.topRight.y))) BR(\(String(format: "%.1f", rectangle.bottomRight.x)), \(String(format: "%.1f", rectangle.bottomRight.y))) BL(\(String(format: "%.1f", rectangle.bottomLeft.x)), \(String(format: "%.1f", rectangle.bottomLeft.y)))")
                     
+                    // Show segmentation mask overlay (contour fill) just before capture
+                    if let contour = self.lastSegmentationContour {
+                        self.showSegmentationOverlay(contour: contour, imageSize: imageSize, duration: 0.8)
+                    }
+
                     capturePhoto()
                 } else if shouldAutoScan {
-                    print("📸📸📸 CaptureSession: Auto-scan triggered but conditions not met - autoScan: \(CaptureSession.current.isAutoScanEnabled), editing: \(CaptureSession.current.isEditing)")
+                    print("📸📸📸 CaptureSession: Stability met but conditions not met - autoScan: \(CaptureSession.current.isAutoScanEnabled), editing: \(CaptureSession.current.isEditing)")
                 }
             }
 
@@ -330,6 +339,51 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
         return quad
     }
 
+}
+
+// MARK: - Segmentation Overlay
+
+private extension CaptureSessionManager {
+    func showSegmentationOverlay(contour: [CGPoint], imageSize: CGSize, duration: TimeInterval) {
+        guard contour.count >= 3 else { return }
+        let path = UIBezierPath()
+        let first = mapImagePointToPreview(contour[0], imageSize: imageSize)
+        path.move(to: first)
+        // Decimate to reduce path size
+        let step = max(1, contour.count / 200)
+        for i in stride(from: 1, to: contour.count, by: step) {
+            let p = mapImagePointToPreview(contour[i], imageSize: imageSize)
+            path.addLine(to: p)
+        }
+        path.close()
+        DispatchQueue.main.async {
+            self.maskOverlayLayer?.removeFromSuperlayer()
+            let layer = CAShapeLayer()
+            layer.path = path.cgPath
+            layer.fillColor = UIColor.systemBlue.withAlphaComponent(0.25).cgColor
+            layer.strokeColor = UIColor.systemBlue.withAlphaComponent(0.8).cgColor
+            layer.lineWidth = 2
+            self.videoPreviewLayer.addSublayer(layer)
+            self.maskOverlayLayer = layer
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+                layer.removeFromSuperlayer()
+                if self.maskOverlayLayer === layer { self.maskOverlayLayer = nil }
+            }
+        }
+    }
+
+    func mapImagePointToPreview(_ point: CGPoint, imageSize: CGSize) -> CGPoint {
+        // Match .resizeAspectFill mapping used by preview layer
+        let layerSize = videoPreviewLayer.bounds.size
+        let scale = max(layerSize.width / imageSize.width, layerSize.height / imageSize.height)
+        let scaledWidth = imageSize.width * scale
+        let scaledHeight = imageSize.height * scale
+        let offsetX = (layerSize.width - scaledWidth) / 2.0
+        let offsetY = (layerSize.height - scaledHeight) / 2.0
+        let x = point.x * scale + offsetX
+        let y = point.y * scale + offsetY
+        return CGPoint(x: x, y: y)
+    }
 }
 
 extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
