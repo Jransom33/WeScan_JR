@@ -26,6 +26,18 @@ final class EditScanViewController: UIViewController {
         return imageView
     }()
 
+    private lazy var maskOverlayImageView: UIImageView = {
+        let overlay = UIImageView()
+        overlay.clipsToBounds = true
+        overlay.isOpaque = false
+        overlay.image = overlayImage
+        overlay.backgroundColor = .clear
+        overlay.contentMode = .scaleAspectFit
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        overlay.isUserInteractionEnabled = false
+        return overlay
+    }()
+
     private lazy var quadView: QuadrilateralView = {
         let quadView = QuadrilateralView()
         quadView.editable = true
@@ -63,6 +75,9 @@ final class EditScanViewController: UIViewController {
     /// The detected quadrilateral that can be edited by the user. Uses the image's coordinates.
     private var quad: Quadrilateral
 
+    /// Optional rendered segmentation mask to overlay during editing
+    private let overlayImage: UIImage?
+
     private var zoomGestureController: ZoomGestureController!
 
     private var quadViewWidthConstraint = NSLayoutConstraint()
@@ -70,9 +85,10 @@ final class EditScanViewController: UIViewController {
 
     // MARK: - Life Cycle
 
-    init(image: UIImage, quad: Quadrilateral?, rotateImage: Bool = true) {
+    init(image: UIImage, quad: Quadrilateral?, overlayImage: UIImage? = nil, rotateImage: Bool = true) {
         self.image = rotateImage ? image.applyingPortraitOrientation() : image
         self.quad = quad ?? EditScanViewController.defaultQuad(forImage: image)
+        self.overlayImage = overlayImage
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -123,6 +139,7 @@ final class EditScanViewController: UIViewController {
 
     private func setupViews() {
         view.addSubview(imageView)
+        view.addSubview(maskOverlayImageView)
         view.addSubview(quadView)
     }
 
@@ -132,6 +149,13 @@ final class EditScanViewController: UIViewController {
             imageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             view.bottomAnchor.constraint(equalTo: imageView.bottomAnchor),
             view.leadingAnchor.constraint(equalTo: imageView.leadingAnchor)
+        ]
+
+        let overlayConstraints = [
+            maskOverlayImageView.topAnchor.constraint(equalTo: imageView.topAnchor),
+            maskOverlayImageView.leadingAnchor.constraint(equalTo: imageView.leadingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: maskOverlayImageView.bottomAnchor),
+            imageView.trailingAnchor.constraint(equalTo: maskOverlayImageView.trailingAnchor)
         ]
 
         quadViewWidthConstraint = quadView.widthAnchor.constraint(equalToConstant: 0.0)
@@ -144,7 +168,7 @@ final class EditScanViewController: UIViewController {
             quadViewHeightConstraint
         ]
 
-        NSLayoutConstraint.activate(quadViewConstraints + imageViewConstraints)
+        NSLayoutConstraint.activate(quadViewConstraints + imageViewConstraints + overlayConstraints)
     }
 
     // MARK: - Actions

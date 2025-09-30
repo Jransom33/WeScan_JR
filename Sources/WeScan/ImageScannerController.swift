@@ -175,9 +175,9 @@ public final class ImageScannerController: UINavigationController {
 
         // If an image was passed in by the host app (e.g. picked from the photo library), use it instead of the document scanner.
         if let image {
-            detect(image: image) { [weak self] detectedQuad in
+            detect(image: image) { [weak self] detectedQuad, maskImage in
                 guard let self else { return }
-                let editViewController = EditScanViewController(image: image, quad: detectedQuad, rotateImage: false)
+                let editViewController = EditScanViewController(image: image, quad: detectedQuad, overlayImage: maskImage, rotateImage: false)
                 self.setViewControllers([editViewController], animated: false)
             }
         }
@@ -199,7 +199,7 @@ public final class ImageScannerController: UINavigationController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func detect(image: UIImage, completion: @escaping (Quadrilateral?) -> Void) {
+    private func detect(image: UIImage, completion: @escaping (Quadrilateral?, UIImage?) -> Void) {
         // Whether or not we detect a quad, present the edit view controller after attempting to detect a quad.
         // *** Vision *requires* a completion block to detect rectangles, but it's instant.
         // *** When using Vision, we'll present the normal edit view controller first, then present the updated edit view controller later.
@@ -213,23 +213,31 @@ public final class ImageScannerController: UINavigationController {
             CoreMLSegmentationDetector.segmentPage(forImage: ciImage, orientation: orientation) { result in
                 if let result, let quad = CoreMLSegmentationDetector.convertToQuadrilateral(from: result) {
                     let detectedQuad = quad.toCartesian(withHeight: orientedImage.extent.height)
-                    completion(detectedQuad)
+                    // Render mask image for overlay at original resolution
+                    let maskImage = CoreMLSegmentationDetector.renderMaskImage(
+                        originalSize: image.size,
+                        mask: result.mask,
+                        threshold: 0.5,
+                        color: .systemBlue,
+                        alpha: 0.45
+                    )
+                    completion(detectedQuad, maskImage)
                 } else {
-                    completion(nil)
+                    completion(nil, nil)
                 }
             }
         } else {
             // DeepLabV3-only: no alternative detection on older iOS versions
-            completion(nil)
+            completion(nil, nil)
         }
     }
 
     public func useImage(image: UIImage) {
         guard topViewController is ScannerViewController else { return }
 
-        detect(image: image) { [weak self] detectedQuad in
+        detect(image: image) { [weak self] detectedQuad, maskImage in
             guard let self else { return }
-            let editViewController = EditScanViewController(image: image, quad: detectedQuad, rotateImage: false)
+            let editViewController = EditScanViewController(image: image, quad: detectedQuad, overlayImage: maskImage, rotateImage: false)
             self.setViewControllers([editViewController], animated: true)
         }
     }
