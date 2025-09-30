@@ -53,7 +53,6 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
 
     private let videoPreviewLayer: AVCaptureVideoPreviewLayer
     private let captureSession = AVCaptureSession()
-    private let rectangleFunnel = RectangleFeaturesFunnel()
     weak var delegate: RectangleDetectionDelegateProtocol?
     private var displayedRectangleResult: RectangleDetectorResult?
     private let stabilityMonitor = MotionStabilityMonitor()
@@ -73,6 +72,12 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
 
     /// The minimum number of time required by `noRectangleCount` to validate that no rectangles have been found.
     private let noRectangleThreshold = 8
+    
+    /// Simplified autocapture: count consecutive stable frames with detected rectangle
+    private var stableFramesWithRectangle = 0
+    
+    /// Number of consecutive stable frames required before autocapture (at ~30fps, 15 frames = ~500ms)
+    private let requiredStableFrames = 15
 
     // MARK: Life Cycle
 
@@ -252,62 +257,51 @@ final class CaptureSessionManager: NSObject, AVCaptureVideoDataOutputSampleBuffe
 
     private func processRectangle(rectangle: Quadrilateral?, imageSize: CGSize) {
         if let rectangle {
-            print("📸📸📸 CaptureSession: Rectangle detected! Image size: \(imageSize)")
             self.noRectangleCount = 0
-            self.rectangleFunnel
-                .add(rectangle, currentlyDisplayedRectangle: self.displayedRectangleResult?.rectangle) { [weak self] result, rectangle in
-
-                guard let self else {
-                    return
-                }
-
-                // Override auto-scan policy: capture when device is stable
-                let shouldAutoScan = stabilityMonitor.isStable
-                print("📸📸📸 CaptureSession: Stability-gated auto-scan - stable: \(shouldAutoScan)")
-                print("📸📸📸 CaptureSession: Auto-scan enabled: \(CaptureSession.current.isAutoScanEnabled), isEditing: \(CaptureSession.current.isEditing)")
+            
+            // Display the rectangle (Kalman-smoothed from live preview)
+            self.displayRectangleResult(rectangleResult: RectangleDetectorResult(rectangle: rectangle, imageSize: imageSize))
+            
+            // Simplified autocapture logic: count consecutive stable frames
+            let isStable = stabilityMonitor.isStable
+            let canAutoScan = CaptureSession.current.isAutoScanEnabled && !CaptureSession.current.isEditing
+            
+            if isStable && canAutoScan {
+                stableFramesWithRectangle += 1
+                print("📸📸📸 CaptureSession: Stable frame \(stableFramesWithRectangle)/\(requiredStableFrames) with rectangle")
                 
-                self.displayRectangleResult(rectangleResult: RectangleDetectorResult(rectangle: rectangle, imageSize: imageSize))
-                if shouldAutoScan, CaptureSession.current.isAutoScanEnabled, !CaptureSession.current.isEditing {
-                    print("📸📸📸 CaptureSession: CAPTURING PHOTO! 📷")
+                if stableFramesWithRectangle >= requiredStableFrames {
+                    print("📸📸📸 CaptureSession: 🎉 AUTOCAPTURE! Device stable for \(stableFramesWithRectangle) frames")
+                    stableFramesWithRectangle = 0  // Reset counter
                     
-                    // Calculate and log the exact aspect ratio of the captured rectangle
-                    let capturedAspectRatio = rectangle.aspectRatio
-                    let capturedArea = rectangle.area
-                    print("🔥 CAPTURED IMAGE ASPECT RATIO: \(String(format: "%.3f", capturedAspectRatio)) | AREA: \(String(format: "%.0f", capturedArea)) pixels")
-                    print("🔥 RECTANGLE BOUNDS: TL(\(String(format: "%.1f", rectangle.topLeft.x)), \(String(format: "%.1f", rectangle.topLeft.y))) TR(\(String(format: "%.1f", rectangle.topRight.x)), \(String(format: "%.1f", rectangle.topRight.y))) BR(\(String(format: "%.1f", rectangle.bottomRight.x)), \(String(format: "%.1f", rectangle.bottomRight.y))) BL(\(String(format: "%.1f", rectangle.bottomLeft.x)), \(String(format: "%.1f", rectangle.bottomLeft.y)))")
-                    
-                    // Show segmentation mask overlay (contour fill) just before capture
+                    // Show segmentation mask overlay just before capture
                     if let contour = self.lastSegmentationContour {
                         self.showSegmentationOverlay(contour: contour, imageSize: imageSize, duration: 0.8)
                     }
-
+                    
                     capturePhoto()
-                } else if shouldAutoScan {
-                    print("📸📸📸 CaptureSession: Stability met but conditions not met - autoScan: \(CaptureSession.current.isAutoScanEnabled), editing: \(CaptureSession.current.isEditing)")
+                }
+            } else {
+                // Device moved or conditions not met - reset counter
+                if stableFramesWithRectangle > 0 {
+                    print("📸📸📸 CaptureSession: Stability lost or conditions not met, resetting counter (was: \(stableFramesWithRectangle))")
+                    stableFramesWithRectangle = 0
                 }
             }
-
         } else {
-            print("📸📸📸 CaptureSession: No rectangle detected")
-            DispatchQueue.main.async { [weak self] in
-                guard let self else {
-                    return
-                }
-                self.noRectangleCount += 1
-                print("📸📸📸 CaptureSession: No rectangle count: \(self.noRectangleCount)/\(self.noRectangleThreshold)")
-
-                if self.noRectangleCount > self.noRectangleThreshold {
-                    print("📸📸📸 CaptureSession: Clearing displayed rectangle - too many frames without detection")
-                    // Reset the currentAutoScanPassCount, so the threshold is restarted the next time a rectangle is found
-                    self.rectangleFunnel.currentAutoScanPassCount = 0
-
-                    // Remove the currently displayed rectangle as no rectangles are being found anymore
+            // No rectangle detected
+            self.noRectangleCount += 1
+            stableFramesWithRectangle = 0  // Reset counter when no rectangle
+            
+            if self.noRectangleCount > self.noRectangleThreshold {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    print("📸📸📸 CaptureSession: Clearing displayed rectangle - no detection for \(self.noRectangleCount) frames")
                     self.displayedRectangleResult = nil
                     self.delegate?.captureSessionManager(self, didDetectQuad: nil, imageSize)
                 }
             }
             return
-
         }
     }
 
@@ -390,7 +384,7 @@ extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
         }
 
         isDetecting = false
-        rectangleFunnel.currentAutoScanPassCount = 0
+        stableFramesWithRectangle = 0  // Reset counter
         delegate?.didStartCapturingPicture(for: self)
 
         if let sampleBuffer = photoSampleBuffer,
@@ -415,7 +409,7 @@ extension CaptureSessionManager: AVCapturePhotoCaptureDelegate {
         }
 
         isDetecting = false
-        rectangleFunnel.currentAutoScanPassCount = 0
+        stableFramesWithRectangle = 0  // Reset counter
         delegate?.didStartCapturingPicture(for: self)
 
         if let imageData = photo.fileDataRepresentation() {
