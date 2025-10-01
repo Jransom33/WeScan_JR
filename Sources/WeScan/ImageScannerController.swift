@@ -102,22 +102,24 @@ public final class ImageScannerController: UINavigationController {
     /// Configure with debugging-friendly settings for troubleshooting segmentation predictions
     /// Uses lenient thresholds and enables detailed logging
     @available(iOS 15.0, *)
-    public static func configureWithDebugSettings(with model: MLModel) throws {
+    public static func configureWithDebugSettings(with model: MLModel, renderMaskOverlay: Bool = false) throws {
         let debugConfig = CoreMLSegmentationConfig(
             threshold: 0.3,             // Lower threshold for debugging
             minContourArea: 500.0,      // Lower minimum area
-            applyMorphology: true       // Enable morphological operations
+            applyMorphology: true,      // Enable morphological operations
+            renderMaskOverlay: renderMaskOverlay
         )
         try CoreMLSegmentationDetector.configure(with: model, config: debugConfig)
     }
 
     /// Configure with debugging-friendly settings using model name
     @available(iOS 15.0, *)
-    public static func configureWithDebugSettings(modelName: String, in bundle: Bundle = Bundle.main) throws {
+    public static func configureWithDebugSettings(modelName: String, in bundle: Bundle = Bundle.main, renderMaskOverlay: Bool = false) throws {
         let debugConfig = CoreMLSegmentationConfig(
             threshold: 0.3,             // Lower threshold for debugging
             minContourArea: 500.0,      // Lower minimum area
-            applyMorphology: true       // Enable morphological operations
+            applyMorphology: true,      // Enable morphological operations
+            renderMaskOverlay: renderMaskOverlay
         )
         try CoreMLSegmentationDetector.configure(modelName: modelName, in: bundle, config: debugConfig)
     }

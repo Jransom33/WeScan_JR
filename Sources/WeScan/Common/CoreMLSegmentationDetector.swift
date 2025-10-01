@@ -23,11 +23,17 @@ public struct CoreMLSegmentationConfig {
     /// Whether to apply morphological operations to clean up the mask
     public let applyMorphology: Bool
     
-    /// Default configuration
+    /// Whether to render the mask overlay image during live capture (default: false for performance)
+    /// Note: Rendering masks on high-res images (3024x4032) takes ~4 seconds.
+    /// Set to true only if you need the light blue overlay in EditScanViewController.
+    public let renderMaskOverlay: Bool
+    
+    /// Default configuration (optimized for speed)
     public static let `default` = CoreMLSegmentationConfig(
         threshold: 0.5,
         minContourArea: 1000.0,
-        applyMorphology: true
+        applyMorphology: true,
+        renderMaskOverlay: false  // Disabled by default for performance
     )
     
     /// Initialize a new configuration
@@ -35,10 +41,12 @@ public struct CoreMLSegmentationConfig {
     ///   - threshold: Threshold for converting probabilities to binary mask
     ///   - minContourArea: Minimum contour area to consider as valid page
     ///   - applyMorphology: Whether to apply morphological operations to clean up the mask
-    public init(threshold: Float, minContourArea: Float, applyMorphology: Bool) {
+    ///   - renderMaskOverlay: Whether to render the mask overlay image (expensive, ~4s on high-res)
+    public init(threshold: Float, minContourArea: Float, applyMorphology: Bool, renderMaskOverlay: Bool = false) {
         self.threshold = threshold
         self.minContourArea = minContourArea
         self.applyMorphology = applyMorphology
+        self.renderMaskOverlay = renderMaskOverlay
     }
 }
 
@@ -66,6 +74,11 @@ public enum CoreMLSegmentationDetector {
     
     private static var visionModel: VNCoreMLModel?
     private static var config: CoreMLSegmentationConfig = .default
+    
+    /// Check if mask overlay rendering is enabled in the current configuration
+    public static var shouldRenderMaskOverlay: Bool {
+        return config.renderMaskOverlay
+    }
     
     /// Get timestamp for logging
     private static func timestamp() -> String {

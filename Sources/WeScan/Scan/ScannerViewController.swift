@@ -355,15 +355,28 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
                     let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
                     detectedQuad = quad.toCartesian(withHeight: orientedImage.extent.height)
                     
-                    // SKIP EXPENSIVE MASK RENDERING (saves ~4 seconds!)
-                    // Render mask lazily in EditScanViewController if needed
-                    print("[\(self.timestamp())] 📸 Scanner: Skipping mask rendering for speed (will render in edit screen)")
+                    // Check if mask rendering is enabled in config
+                    if CoreMLSegmentationDetector.shouldRenderMaskOverlay {
+                        let maskStart = CACurrentMediaTime()
+                        print("[\(self.timestamp())] 📸 Scanner: Rendering mask overlay (this may take ~4 seconds)...")
+                        maskImage = CoreMLSegmentationDetector.renderMaskImage(
+                            originalSize: picture.size,
+                            mask: result.mask,
+                            threshold: 0.5,
+                            color: .systemBlue,
+                            alpha: 0.45
+                        )
+                        let maskTime = (CACurrentMediaTime() - maskStart) * 1000
+                        print("[\(self.timestamp())] 📸 Scanner: Mask rendering complete (\(String(format: "%.0f", maskTime))ms)")
+                    } else {
+                        print("[\(self.timestamp())] 📸 Scanner: Mask rendering disabled (config.renderMaskOverlay = false)")
+                    }
                 } else {
                     print("[\(self.timestamp())] 📸 Scanner: No quad detected by DeepLabV3, using live preview quad if available")
                     detectedQuad = quad
                 }
                 
-                // Process the captured image with detected quad (NO mask - saves 4+ seconds!)
+                // Process the captured image with detected quad and optional mask
                 self.processCapturedImage(picture, detectedQuad: detectedQuad, maskImage: maskImage)
             }
         } else {
