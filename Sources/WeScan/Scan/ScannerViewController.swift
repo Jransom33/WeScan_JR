@@ -38,6 +38,7 @@ public final class ScannerViewController: UIViewController {
     private lazy var cancelButton: UIButton = {
         let button = UIButton()
         button.setTitle(NSLocalizedString("wescan.scanning.cancel", tableName: nil, bundle: Bundle(for: ScannerViewController.self), value: "Cancel", comment: "The cancel button"), for: .normal)
+        button.setTitleColor(.black, for: .normal) // Black text for visibility
         button.translatesAutoresizingMaskIntoConstraints = false
         button.addTarget(self, action: #selector(cancelImageScannerController), for: .touchUpInside)
         return button
@@ -86,7 +87,7 @@ public final class ScannerViewController: UIViewController {
     private lazy var autoScanButton: UIBarButtonItem = {
         let title = NSLocalizedString("wescan.scanning.auto", tableName: nil, bundle: Bundle(for: ScannerViewController.self), value: "Auto", comment: "The auto button state")
         let button = UIBarButtonItem(title: title, style: .plain, target: self, action: #selector(toggleAutoScan))
-        button.tintColor = .white
+        button.tintColor = .black  // Black for visibility on light background
 
         return button
     }()
@@ -94,7 +95,7 @@ public final class ScannerViewController: UIViewController {
     private lazy var flashButton: UIBarButtonItem = {
         let image = UIImage(systemName: "bolt.fill", named: "flash", in: Bundle(for: ScannerViewController.self), compatibleWith: nil)
         let button = UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(toggleFlash))
-        button.tintColor = .white
+        button.tintColor = .black  // Black for visibility on light background
 
         return button
     }()
@@ -102,7 +103,7 @@ public final class ScannerViewController: UIViewController {
     private lazy var textDetectionButton: UIBarButtonItem = {
         let image = UIImage(systemName: "text.viewfinder")
         let button = UIBarButtonItem(image: image, style: .plain, target: self, action: #selector(toggleTextDetection))
-        button.tintColor = .white
+        button.tintColor = .black  // Black for visibility on light background
         return button
     }()
 
@@ -185,7 +186,7 @@ public final class ScannerViewController: UIViewController {
         // Add new UI elements (matching screenshot layout)
         view.addSubview(galleryButton)
         view.addSubview(thumbnailButton)
-        thumbnailButton.addSubview(thumbnailBadge)
+        view.addSubview(thumbnailBadge)  // Add to view, not button, to prevent clipping
     }
 
     private func setupNavigationBar() {
@@ -227,17 +228,18 @@ public final class ScannerViewController: UIViewController {
         ]
 
         if #available(iOS 11.0, *) {
+            // Position cancel button at top-left to avoid overlap with gallery button
             cancelButtonConstraints = [
-                cancelButton.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor, constant: 24.0),
-                view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: cancelButton.bottomAnchor, constant: (65.0 / 2) - 10.0)
+                cancelButton.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor, constant: 16.0),
+                cancelButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16.0)
             ]
 
             let shutterButtonBottomConstraint = view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: shutterButton.bottomAnchor, constant: 8.0)
             shutterButtonConstraints.append(shutterButtonBottomConstraint)
         } else {
             cancelButtonConstraints = [
-                cancelButton.leftAnchor.constraint(equalTo: view.leftAnchor, constant: 24.0),
-                view.bottomAnchor.constraint(equalTo: cancelButton.bottomAnchor, constant: (65.0 / 2) - 10.0)
+                cancelButton.leftAnchor.constraint(equalTo: view.leftAnchor, constant: 16.0),
+                cancelButton.topAnchor.constraint(equalTo: topLayoutGuide.bottomAnchor, constant: 16.0)
             ]
 
             let shutterButtonBottomConstraint = view.bottomAnchor.constraint(equalTo: shutterButton.bottomAnchor, constant: 8.0)
@@ -249,39 +251,25 @@ public final class ScannerViewController: UIViewController {
         var thumbnailButtonConstraints = [NSLayoutConstraint]()
         var thumbnailBadgeConstraints = [NSLayoutConstraint]()
         
-        if #available(iOS 11.0, *) {
-            galleryButtonConstraints = [
-                galleryButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 40),
-                view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: galleryButton.bottomAnchor, constant: 40),
-                galleryButton.widthAnchor.constraint(equalToConstant: 60),
-                galleryButton.heightAnchor.constraint(equalToConstant: 60)
-            ]
-            
-            thumbnailButtonConstraints = [
-                view.safeAreaLayoutGuide.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 40),
-                view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: thumbnailButton.bottomAnchor, constant: 40),
-                thumbnailButton.widthAnchor.constraint(equalToConstant: 60),
-                thumbnailButton.heightAnchor.constraint(equalToConstant: 60)
-            ]
-        } else {
-            galleryButtonConstraints = [
-                galleryButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
-                view.bottomAnchor.constraint(equalTo: galleryButton.bottomAnchor, constant: 40),
-                galleryButton.widthAnchor.constraint(equalToConstant: 60),
-                galleryButton.heightAnchor.constraint(equalToConstant: 60)
-            ]
-            
-            thumbnailButtonConstraints = [
-                view.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 40),
-                view.bottomAnchor.constraint(equalTo: thumbnailButton.bottomAnchor, constant: 40),
-                thumbnailButton.widthAnchor.constraint(equalToConstant: 60),
-                thumbnailButton.heightAnchor.constraint(equalToConstant: 60)
-            ]
-        }
+        // Align gallery and thumbnail buttons vertically with shutter button
+        galleryButtonConstraints = [
+            galleryButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            galleryButton.centerYAnchor.constraint(equalTo: shutterButton.centerYAnchor), // Align vertically
+            galleryButton.widthAnchor.constraint(equalToConstant: 60),
+            galleryButton.heightAnchor.constraint(equalToConstant: 60)
+        ]
         
+        thumbnailButtonConstraints = [
+            view.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 40),
+            thumbnailButton.centerYAnchor.constraint(equalTo: shutterButton.centerYAnchor), // Align vertically
+            thumbnailButton.widthAnchor.constraint(equalToConstant: 60),
+            thumbnailButton.heightAnchor.constraint(equalToConstant: 60)
+        ]
+        
+        // Fix badge positioning - position outside the button so it's not clipped
         thumbnailBadgeConstraints = [
-            thumbnailBadge.topAnchor.constraint(equalTo: thumbnailButton.topAnchor, constant: -6),
-            thumbnailBadge.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 6),
+            thumbnailBadge.topAnchor.constraint(equalTo: thumbnailButton.topAnchor, constant: -8),
+            thumbnailBadge.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 8),
             thumbnailBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 24),
             thumbnailBadge.heightAnchor.constraint(equalToConstant: 24)
         ]
@@ -382,9 +370,9 @@ public final class ScannerViewController: UIViewController {
         guard let captureSessionManager = captureSessionManager else { return }
         
         if captureSessionManager.useTextBasedDetection {
-            textDetectionButton.tintColor = .systemBlue  // Active blue color
+            textDetectionButton.tintColor = UIColor(red: 255/255, green: 74/255, blue: 28/255, alpha: 1.0)  // Active orange (#FF4A1C)
         } else {
-            textDetectionButton.tintColor = .white  // Inactive white color
+            textDetectionButton.tintColor = .black  // Inactive black color
         }
     }
 
