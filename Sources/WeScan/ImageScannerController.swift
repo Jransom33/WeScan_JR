@@ -379,12 +379,9 @@ public final class ImageScannerController: UINavigationController {
         
         let totalTime = (CACurrentMediaTime() - startTime) * 1000
         print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: addScanResult TOTAL: \(String(format: "%.0f", totalTime))ms")
-        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: Scan \(scanResults.count) added, showing thumbnail summary")
+        print("[\(timestamp.string(from: Date()))] 📸 ImageScanner: Scan \(scanResults.count) added - staying on camera (user can tap thumbnail to view)")
         
-        // Show thumbnail summary instead of automatically returning to camera
-        DispatchQueue.main.async { [weak self] in
-            self?.showThumbnailSummary()
-        }
+        // Don't auto-show thumbnail summary - let user tap thumbnail button when ready
     }
     
     /// Creates and adds a thumbnail for a scan result.
