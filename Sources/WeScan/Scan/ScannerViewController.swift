@@ -395,40 +395,15 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
         let originalScan = ImageScannerScan(image: picture)
         print("[\(self.timestamp())] 📸 Scanner: Created originalScan (+\(String(format: "%.0f", (CACurrentMediaTime() - startTime) * 1000))ms)")
         
-        // Apply perspective correction if we have a detected quad
-        let croppedScan: ImageScannerScan
-        if let quad = detectedQuad,
-           let ciImage = CIImage(image: picture) {
-            let perspectiveStart = CACurrentMediaTime()
-            let cgOrientation = CGImagePropertyOrientation(picture.imageOrientation)
-            let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
-            
-            // Convert quad to image coordinates
-            var cartesianQuad = quad.toCartesian(withHeight: picture.size.height)
-            cartesianQuad.reorganize()
-            
-            print("[\(self.timestamp())] 📸 Scanner: Applying perspective correction...")
-            let filteredImage = orientedImage.applyingFilter("CIPerspectiveCorrection", parameters: [
-                "inputTopLeft": CIVector(cgPoint: cartesianQuad.bottomLeft),
-                "inputTopRight": CIVector(cgPoint: cartesianQuad.bottomRight),
-                "inputBottomLeft": CIVector(cgPoint: cartesianQuad.topLeft),
-                "inputBottomRight": CIVector(cgPoint: cartesianQuad.topRight)
-            ])
-            
-            let croppedImage = UIImage.from(ciImage: filteredImage)
-            croppedScan = ImageScannerScan(image: croppedImage)
-            let perspectiveTime = (CACurrentMediaTime() - perspectiveStart) * 1000
-            print("[\(self.timestamp())] 📸 Scanner: Perspective correction done (\(String(format: "%.0f", perspectiveTime))ms)")
-        } else {
-            print("[\(self.timestamp())] 📸 Scanner: No quad available, using original image as cropped scan")
-            croppedScan = originalScan
-        }
+        // DON'T pre-crop! Let EditScanViewController do the cropping when user clicks "Next"
+        // This ensures the crop uses the user-adjusted quadrilateral, not the initial detected one
+        print("[\(self.timestamp())] 📸 Scanner: Skipping pre-crop, will crop in EditScanViewController with user-adjusted quad")
         
         let resultsStart = CACurrentMediaTime()
         let scanResult = ImageScannerResults(
             detectedRectangle: detectedQuad,
             originalScan: originalScan,
-            croppedScan: croppedScan,
+            croppedScan: originalScan,  // Use original as placeholder, will be replaced after edit
             enhancedScan: nil,
             overlayImage: maskImage
         )
