@@ -341,6 +341,17 @@ public final class ThumbnailSummaryViewController: UIViewController {
         
         print("📸📸📸 ThumbnailSummary: Completing scan with \(scanResults.count) pages")
         
+        // Debug: Log what's being saved
+        for (index, result) in scanResults.enumerated() {
+            print("💾💾💾 SAVING Page \(index + 1):")
+            print("💾 Original image size: \(result.originalScan.image.size)")
+            print("💾 Cropped image size: \(result.croppedScan.image.size)")
+            print("💾 Enhanced image size: \(result.enhancedScan?.image.size.debugDescription ?? "nil")")
+            print("💾 Detected rectangle: TL=\(result.detectedRectangle?.topLeft.debugDescription ?? "nil"), TR=\(result.detectedRectangle?.topRight.debugDescription ?? "nil"), BR=\(result.detectedRectangle?.bottomRight.debugDescription ?? "nil"), BL=\(result.detectedRectangle?.bottomLeft.debugDescription ?? "nil")")
+            print("💾 User prefers enhanced: \(result.doesUserPreferEnhancedScan)")
+            print("💾💾💾")
+        }
+        
         if delegate.isMultiPageScanningEnabled {
             delegate.multiPageDelegate?.imageScannerController(delegate, didFinishScanningWithMultipleResults: scanResults)
         } else if let firstResult = scanResults.first {

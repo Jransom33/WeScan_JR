@@ -408,7 +408,14 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
             var cartesianQuad = quad.toCartesian(withHeight: picture.size.height)
             cartesianQuad.reorganize()
             
-            print("[\(self.timestamp())] 📸 Scanner: Applying initial perspective correction with detected quad...")
+            print("[\(self.timestamp())] 🔶🔶🔶 CROP #1 (ScannerViewController - Initial)")
+            print("[\(self.timestamp())] 🔶 Input image size: \(picture.size)")
+            print("[\(self.timestamp())] 🔶 Input image orientation: \(picture.imageOrientation.rawValue)")
+            print("[\(self.timestamp())] 🔶 Oriented image extent: \(orientedImage.extent)")
+            print("[\(self.timestamp())] 🔶 Detected quad (before toCartesian): TL=\(quad.topLeft), TR=\(quad.topRight), BR=\(quad.bottomRight), BL=\(quad.bottomLeft)")
+            print("[\(self.timestamp())] 🔶 Cartesian quad: TL=\(cartesianQuad.topLeft), TR=\(cartesianQuad.topRight), BR=\(cartesianQuad.bottomRight), BL=\(cartesianQuad.bottomLeft)")
+            print("[\(self.timestamp())] 🔶 Perspective params: inputTopLeft=\(cartesianQuad.bottomLeft), inputTopRight=\(cartesianQuad.bottomRight), inputBottomLeft=\(cartesianQuad.topLeft), inputBottomRight=\(cartesianQuad.topRight)")
+            
             let filteredImage = orientedImage.applyingFilter("CIPerspectiveCorrection", parameters: [
                 "inputTopLeft": CIVector(cgPoint: cartesianQuad.bottomLeft),
                 "inputTopRight": CIVector(cgPoint: cartesianQuad.bottomRight),
@@ -416,11 +423,14 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
                 "inputBottomRight": CIVector(cgPoint: cartesianQuad.topRight)
             ])
             
+            print("[\(self.timestamp())] 🔶 Filtered image extent: \(filteredImage.extent)")
+            
             let croppedImage = UIImage.from(ciImage: filteredImage)
             croppedScan = ImageScannerScan(image: croppedImage)
             let perspectiveTime = (CACurrentMediaTime() - perspectiveStart) * 1000
-            print("[\(self.timestamp())] 📸 Scanner: Initial perspective correction done (\(String(format: "%.0f", perspectiveTime))ms)")
-            print("[\(self.timestamp())] 📸 Scanner: NOTE: This crop will be replaced if user edits quad in EditScanViewController")
+            print("[\(self.timestamp())] 🔶 Output cropped image size: \(croppedImage.size)")
+            print("[\(self.timestamp())] 🔶 CROP #1 COMPLETE (\(String(format: "%.0f", perspectiveTime))ms)")
+            print("[\(self.timestamp())] 🔶🔶🔶")
         } else {
             print("[\(self.timestamp())] 📸 Scanner: No quad available, using original image as cropped scan")
             croppedScan = originalScan

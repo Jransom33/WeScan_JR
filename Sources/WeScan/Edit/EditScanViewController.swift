@@ -259,9 +259,20 @@ final class EditScanViewController: UIViewController {
         let scaledQuad = quad.scale(quadView.bounds.size, image.size)
         self.quad = scaledQuad
 
+        print("🔷🔷🔷 CROP #2 (EditScanViewController - User Edit/Review)")
+        print("🔷 Input image size: \(image.size)")
+        print("🔷 Input image orientation: \(image.imageOrientation.rawValue)")
+        print("🔷 Oriented image extent: \(orientedImage.extent)")
+        print("🔷 QuadView bounds: \(quadView.bounds.size)")
+        print("🔷 Quad from quadView: TL=\(quad.topLeft), TR=\(quad.topRight), BR=\(quad.bottomRight), BL=\(quad.bottomLeft)")
+        print("🔷 Scaled quad: TL=\(scaledQuad.topLeft), TR=\(scaledQuad.topRight), BR=\(scaledQuad.bottomRight), BL=\(scaledQuad.bottomLeft)")
+        
         // Cropped Image
         var cartesianScaledQuad = scaledQuad.toCartesian(withHeight: image.size.height)
         cartesianScaledQuad.reorganize()
+
+        print("🔷 Cartesian quad: TL=\(cartesianScaledQuad.topLeft), TR=\(cartesianScaledQuad.topRight), BR=\(cartesianScaledQuad.bottomRight), BL=\(cartesianScaledQuad.bottomLeft)")
+        print("🔷 Perspective params: inputTopLeft=\(cartesianScaledQuad.bottomLeft), inputTopRight=\(cartesianScaledQuad.bottomRight), inputBottomLeft=\(cartesianScaledQuad.topLeft), inputBottomRight=\(cartesianScaledQuad.topRight)")
 
         let filteredImage = orientedImage.applyingFilter("CIPerspectiveCorrection", parameters: [
             "inputTopLeft": CIVector(cgPoint: cartesianScaledQuad.bottomLeft),
@@ -270,7 +281,12 @@ final class EditScanViewController: UIViewController {
             "inputBottomRight": CIVector(cgPoint: cartesianScaledQuad.topRight)
         ])
 
+        print("🔷 Filtered image extent: \(filteredImage.extent)")
+
         let croppedImage = UIImage.from(ciImage: filteredImage)
+        print("🔷 Output cropped image size: \(croppedImage.size)")
+        print("🔷 CROP #2 COMPLETE")
+        print("🔷🔷🔷")
         // Enhanced Image
         let enhancedImage = filteredImage.applyingAdaptiveThreshold()?.withFixedOrientation()
         let enhancedScan = enhancedImage.flatMap { ImageScannerScan(image: $0) }
