@@ -391,31 +391,73 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
         let timestamp = self.timestamp()
         print("[\(timestamp)] 📸 Scanner: processCapturedImage START - image size: \(picture.size)")
         
-        // STRATEGY: Match camera roll flow - go to EditScanViewController first, let it do the crop
-        // This ensures coordinates are always correct, regardless of whether user edits or not
-        
-        print("[\(self.timestamp())] 📸 Scanner: Navigating to EditScanViewController (matching camera roll flow)")
-        print("[\(self.timestamp())] 📸 Scanner: Detected quad will be passed to EditScanViewController for display and cropping")
-        
         guard let imageScannerController = navigationController as? ImageScannerController else {
             print("[\(self.timestamp())] ❌ Scanner: Failed to get ImageScannerController")
             shutterButton.isUserInteractionEnabled = true
             return
         }
         
-        // Navigate to edit screen (same as camera roll flow)
-        let editViewController = EditScanViewController(
-            image: picture,
-            quad: detectedQuad,
-            overlayImage: maskImage,
-            rotateImage: false
+        // Auto-crop the image using detected quad (same logic as EditScanViewController)
+        let originalScan = ImageScannerScan(image: picture)
+        print("[\(self.timestamp())] 📸 Scanner: Created originalScan")
+        
+        let croppedScan: ImageScannerScan
+        let finalQuad: Quadrilateral?
+        
+        if let quad = detectedQuad,
+           let ciImage = CIImage(image: picture) {
+            
+            print("[\(self.timestamp())] 🔷🔷🔷 AUTO-CROP (Live Camera)")
+            print("[\(self.timestamp())] 🔷 Input image size: \(picture.size)")
+            print("[\(self.timestamp())] 🔷 Input image orientation: \(picture.imageOrientation.rawValue)")
+            
+            let cgOrientation = CGImagePropertyOrientation(picture.imageOrientation)
+            let orientedImage = ciImage.oriented(forExifOrientation: Int32(cgOrientation.rawValue))
+            
+            // Convert quad to Cartesian coordinates for cropping
+            var cartesianQuad = quad.toCartesian(withHeight: picture.size.height)
+            cartesianQuad.reorganize()
+            
+            print("[\(self.timestamp())] 🔷 Detected quad: TL=\(quad.topLeft), TR=\(quad.topRight), BR=\(quad.bottomRight), BL=\(quad.bottomLeft)")
+            print("[\(self.timestamp())] 🔷 Cartesian quad: TL=\(cartesianQuad.topLeft), TR=\(cartesianQuad.topRight), BR=\(cartesianQuad.bottomRight), BL=\(cartesianQuad.bottomLeft)")
+            
+            let filteredImage = orientedImage.applyingFilter("CIPerspectiveCorrection", parameters: [
+                "inputTopLeft": CIVector(cgPoint: cartesianQuad.bottomLeft),
+                "inputTopRight": CIVector(cgPoint: cartesianQuad.bottomRight),
+                "inputBottomLeft": CIVector(cgPoint: cartesianQuad.topLeft),
+                "inputBottomRight": CIVector(cgPoint: cartesianQuad.topRight)
+            ])
+            
+            let croppedImage = UIImage.from(ciImage: filteredImage)
+            croppedScan = ImageScannerScan(image: croppedImage)
+            finalQuad = quad  // Save original quad for potential editing later
+            
+            print("[\(self.timestamp())] 🔷 Output cropped image size: \(croppedImage.size)")
+            print("[\(self.timestamp())] 🔷 AUTO-CROP COMPLETE")
+            print("[\(self.timestamp())] 🔷🔷🔷")
+        } else {
+            print("[\(self.timestamp())] 📸 Scanner: No quad detected, using original image")
+            croppedScan = originalScan
+            finalQuad = nil
+        }
+        
+        // Create scan results with cropped image
+        let scanResult = ImageScannerResults(
+            detectedRectangle: finalQuad,
+            originalScan: originalScan,
+            croppedScan: croppedScan,
+            enhancedScan: nil,
+            overlayImage: maskImage
         )
         
-        imageScannerController.setViewControllers([editViewController], animated: true)
-        shutterButton.isUserInteractionEnabled = true
+        // Add to results and stay on camera for next scan
+        imageScannerController.addScanResult(scanResult)
         
         let totalTime = (CACurrentMediaTime() - startTime) * 1000
-        print("[\(self.timestamp())] 📸 Scanner: Navigation complete (\(String(format: "%.0f", totalTime))ms)")
+        print("[\(self.timestamp())] 📸 Scanner: Auto-crop and add complete (\(String(format: "%.0f", totalTime))ms)")
+        print("[\(self.timestamp())] 📸 Scanner: Returning to camera for next scan")
+        
+        shutterButton.isUserInteractionEnabled = true
     }
 
     func captureSessionManager(_ captureSessionManager: CaptureSessionManager, didDetectQuad quad: Quadrilateral?, _ imageSize: CGSize) {
