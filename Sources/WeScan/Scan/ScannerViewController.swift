@@ -42,6 +42,46 @@ public final class ScannerViewController: UIViewController {
         button.addTarget(self, action: #selector(cancelImageScannerController), for: .touchUpInside)
         return button
     }()
+    
+    // MARK: - New UI Elements (matching user screenshots)
+    
+    private lazy var galleryButton: UIButton = {
+        let button = UIButton(type: .system)
+        let config = UIImage.SymbolConfiguration(pointSize: 24, weight: .regular)
+        let image = UIImage(systemName: "photo.on.rectangle", withConfiguration: config)
+        button.setImage(image, for: .normal)
+        button.tintColor = .white
+        button.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        button.layer.cornerRadius = 30
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(galleryButtonTapped), for: .touchUpInside)
+        return button
+    }()
+    
+    private lazy var thumbnailButton: UIButton = {
+        let button = UIButton(type: .custom)
+        button.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        button.layer.cornerRadius = 30
+        button.layer.borderWidth = 2
+        button.layer.borderColor = UIColor.white.cgColor
+        button.clipsToBounds = true
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(thumbnailButtonTapped), for: .touchUpInside)
+        return button
+    }()
+    
+    private lazy var thumbnailBadge: UILabel = {
+        let label = UILabel()
+        label.backgroundColor = UIColor(red: 255/255, green: 74/255, blue: 28/255, alpha: 1.0) // #FF4A1C
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 14, weight: .semibold)
+        label.textAlignment = .center
+        label.layer.cornerRadius = 12
+        label.clipsToBounds = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.isHidden = true
+        return label
+    }()
 
     private lazy var autoScanButton: UIBarButtonItem = {
         let title = NSLocalizedString("wescan.scanning.auto", tableName: nil, bundle: Bundle(for: ScannerViewController.self), value: "Auto", comment: "The auto button state")
@@ -141,6 +181,11 @@ public final class ScannerViewController: UIViewController {
         view.addSubview(cancelButton)
         view.addSubview(shutterButton)
         view.addSubview(activityIndicator)
+        
+        // Add new UI elements (matching screenshot layout)
+        view.addSubview(galleryButton)
+        view.addSubview(thumbnailButton)
+        thumbnailButton.addSubview(thumbnailBadge)
     }
 
     private func setupNavigationBar() {
@@ -199,7 +244,49 @@ public final class ScannerViewController: UIViewController {
             shutterButtonConstraints.append(shutterButtonBottomConstraint)
         }
 
-        NSLayoutConstraint.activate(quadViewConstraints + cancelButtonConstraints + shutterButtonConstraints + activityIndicatorConstraints)
+        // New UI elements constraints (matching screenshot layout)
+        var galleryButtonConstraints = [NSLayoutConstraint]()
+        var thumbnailButtonConstraints = [NSLayoutConstraint]()
+        var thumbnailBadgeConstraints = [NSLayoutConstraint]()
+        
+        if #available(iOS 11.0, *) {
+            galleryButtonConstraints = [
+                galleryButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 40),
+                view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: galleryButton.bottomAnchor, constant: 40),
+                galleryButton.widthAnchor.constraint(equalToConstant: 60),
+                galleryButton.heightAnchor.constraint(equalToConstant: 60)
+            ]
+            
+            thumbnailButtonConstraints = [
+                view.safeAreaLayoutGuide.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 40),
+                view.safeAreaLayoutGuide.bottomAnchor.constraint(equalTo: thumbnailButton.bottomAnchor, constant: 40),
+                thumbnailButton.widthAnchor.constraint(equalToConstant: 60),
+                thumbnailButton.heightAnchor.constraint(equalToConstant: 60)
+            ]
+        } else {
+            galleryButtonConstraints = [
+                galleryButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+                view.bottomAnchor.constraint(equalTo: galleryButton.bottomAnchor, constant: 40),
+                galleryButton.widthAnchor.constraint(equalToConstant: 60),
+                galleryButton.heightAnchor.constraint(equalToConstant: 60)
+            ]
+            
+            thumbnailButtonConstraints = [
+                view.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 40),
+                view.bottomAnchor.constraint(equalTo: thumbnailButton.bottomAnchor, constant: 40),
+                thumbnailButton.widthAnchor.constraint(equalToConstant: 60),
+                thumbnailButton.heightAnchor.constraint(equalToConstant: 60)
+            ]
+        }
+        
+        thumbnailBadgeConstraints = [
+            thumbnailBadge.topAnchor.constraint(equalTo: thumbnailButton.topAnchor, constant: -6),
+            thumbnailBadge.trailingAnchor.constraint(equalTo: thumbnailButton.trailingAnchor, constant: 6),
+            thumbnailBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 24),
+            thumbnailBadge.heightAnchor.constraint(equalToConstant: 24)
+        ]
+        
+        NSLayoutConstraint.activate(quadViewConstraints + cancelButtonConstraints + shutterButtonConstraints + activityIndicatorConstraints + galleryButtonConstraints + thumbnailButtonConstraints + thumbnailBadgeConstraints)
     }
 
     // MARK: - Tap to Focus
@@ -304,6 +391,50 @@ public final class ScannerViewController: UIViewController {
     @objc private func cancelImageScannerController() {
         guard let imageScannerController = navigationController as? ImageScannerController else { return }
         imageScannerController.imageScannerDelegate?.imageScannerControllerDidCancel(imageScannerController)
+    }
+    
+    // MARK: - New UI Actions
+    
+    @objc private func galleryButtonTapped() {
+        guard let imageScannerController = navigationController as? ImageScannerController else { return }
+        imageScannerController.presentGalleryPicker()
+    }
+    
+    @objc private func thumbnailButtonTapped() {
+        guard let imageScannerController = navigationController as? ImageScannerController else { return }
+        
+        // Navigate to thumbnail summary if we have scanned pages
+        if imageScannerController.scanResults.count > 0 {
+            imageScannerController.showThumbnailSummary()
+        }
+    }
+    
+    /// Update thumbnail button with latest scan preview and count badge
+    private func updateThumbnailButton() {
+        guard let imageScannerController = navigationController as? ImageScannerController else { return }
+        
+        let scanCount = imageScannerController.scanResults.count
+        
+        if scanCount > 0 {
+            // Show badge with count
+            thumbnailBadge.text = "\(scanCount)"
+            thumbnailBadge.isHidden = false
+            
+            // Update thumbnail image with latest scan
+            if let latestScan = imageScannerController.scanResults.last {
+                let thumbnailImage = latestScan.croppedScan.image
+                
+                // Create a scaled thumbnail
+                let imageView = UIImageView(image: thumbnailImage)
+                imageView.contentMode = .scaleAspectFill
+                imageView.frame = thumbnailButton.bounds
+                imageView.clipsToBounds = true
+                thumbnailButton.addSubview(imageView)
+                thumbnailButton.sendSubviewToBack(imageView)
+            }
+        } else {
+            thumbnailBadge.isHidden = true
+        }
     }
 
 }
@@ -452,6 +583,9 @@ extension ScannerViewController: RectangleDetectionDelegateProtocol {
         
         // Add to results and stay on camera for next scan
         imageScannerController.addScanResult(scanResult)
+        
+        // Update thumbnail button with new scan count and preview
+        updateThumbnailButton()
         
         let totalTime = (CACurrentMediaTime() - startTime) * 1000
         print("[\(self.timestamp())] 📸 Scanner: Auto-crop and add complete (\(String(format: "%.0f", totalTime))ms)")

@@ -247,6 +247,14 @@ public final class ImageScannerController: UINavigationController {
     public func resetScanner() {
         setViewControllers([ScannerViewController()], animated: true)
     }
+    
+    /// Present the gallery picker to select images
+    public func presentGalleryPicker() {
+        let pickerController = UIImagePickerController()
+        pickerController.delegate = self
+        pickerController.sourceType = .photoLibrary
+        present(pickerController, animated: true)
+    }
 
     private func setupConstraints() {
         let blackFlashViewConstraints = [
@@ -610,5 +618,20 @@ public struct ImageScannerResults {
         self.detectedRectangle = detectedRectangle
         self.enhancedScan = nil
         self.doesUserPreferEnhancedScan = false
+    }
+}
+
+// MARK: - UIImagePickerControllerDelegate
+
+extension ImageScannerController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        picker.dismiss(animated: true)
+        
+        guard let image = info[.originalImage] as? UIImage else { return }
+        useImage(image: image)
+    }
+    
+    public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true)
     }
 }
