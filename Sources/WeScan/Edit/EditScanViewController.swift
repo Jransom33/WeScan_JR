@@ -299,20 +299,25 @@ final class EditScanViewController: UIViewController {
             overlayImage: overlayImage
         )
 
-        // Check if we're editing from thumbnail summary (new flow) or traditional flow
+        guard let imageScannerController = navigationController as? ImageScannerController else { return }
+        
+        // Check if we're editing from thumbnail summary or adding a new scan
         if let editingIndex = editingIndex {
             // We're editing an existing scan from thumbnail summary
             print("📸📸📸 EditScan: Updating scan \(editingIndex + 1) and returning to thumbnail summary")
-            
-            guard let imageScannerController = navigationController as? ImageScannerController else { return }
             imageScannerController.updateScanResultFromThumbnailSummary(results, at: editingIndex)
             
             // Return to thumbnail summary (pop back to it)
             navigationController?.popViewController(animated: true)
+        } else if imageScannerController.isMultiPageScanningEnabled {
+            // New scan from live camera - add to results and show thumbnail summary
+            print("📸📸📸 EditScan: Adding new scan from live camera, going to thumbnail summary")
+            imageScannerController.addScanResult(results)
+            imageScannerController.showThumbnailSummary()
         } else {
-            // Traditional flow - go to review screen
+            // Traditional single-page flow - go to review screen
+            print("📸📸📸 EditScan: Single-page mode, going to review screen")
             let reviewViewController = ReviewViewController(results: results)
-            reviewViewController.editingIndex = editingIndex
             navigationController?.pushViewController(reviewViewController, animated: true)
         }
     }
